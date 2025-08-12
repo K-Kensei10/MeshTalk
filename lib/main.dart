@@ -26,8 +26,22 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  bool _dialogShown = false;
+  @override
+  void initState() {
+    super.initState();
+
+    // 描画が終わったあとにダイアログを表示
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_dialogShown) {
+        show_dialog(context);
+        _dialogShown = true;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Placeholder(); //TODO
+    return const Scaffold(body: Center(child: Text("Mesh Talk メインページ")));
   }
 }
