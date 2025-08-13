@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluetoothを使用します</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>位置情報を使用します</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>通知を送信します</string>
 </dict>
 </plist>

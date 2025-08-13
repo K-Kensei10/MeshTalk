@@ -1,10 +1,36 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-final Uri privacyURL = Uri.parse('https://example.com');
+final Uri privacyURL = Uri.parse('https://youtube.com');
 
-void show_dialog(BuildContext context) {
+Future<void> checkAndRequestPermissions(context) async {
+  final permissions = [
+    Permission.bluetooth,
+    Permission.bluetoothAdvertise,
+    Permission.bluetoothConnect,
+    Permission.bluetoothScan,
+    Permission.location,
+    Permission.notification,
+  ];
+
+  for (final permission in permissions) {
+    final status = await permission.status;
+
+    if (!status.isGranted) {
+      showPop(context);
+      final result = await permission.request();
+
+      if (!result.isGranted) {
+        showPop(context);
+      }
+    }
+  }
+}
+
+void showPop(BuildContext context) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -37,7 +63,9 @@ void show_dialog(BuildContext context) {
                     ),
                     //権限を変更するボタン
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        openAppSettings();
+                      },
                       style: ButtonStyle(
                         foregroundColor: WidgetStateProperty.all(Colors.white),
                         backgroundColor: WidgetStateProperty.all(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:meshtalk/permission_request.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const MainApp());
@@ -34,7 +33,8 @@ class _MainPageState extends State<MainPage> {
     // 描画が終わったあとにダイアログを表示
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_dialogShown) {
-        show_dialog(context);
+        showPop(context);
+        checkAndRequestPermissions(context);
         _dialogShown = true;
       }
     });
