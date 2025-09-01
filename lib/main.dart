@@ -42,6 +42,21 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text("Mesh Talk メインページ")));
+    return const Scaffold(
+      body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+        Text("Mesh Talk メインページ"),
+        ElevatedButton(
+          onPressed: () {
+            
+          },
+          child: Text("送信"),
+        ),
+        ],
+      ),
+      ),
+    );
   }
 }
