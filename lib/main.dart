@@ -25,6 +25,10 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  static const platform = MethodChannel('meshtalk.flutter.dev/send-message');
+
+  String _messageContents = 'お水ちょーだい!';
+  String _buttonText = '送信';
   bool _dialogShown = false;
   @override
   void initState() {
@@ -39,27 +43,38 @@ class _MainPageState extends State<MainPage> {
       }
     });
   }
+  //メッセージを送信するKotlin関数を呼び出している(copilot製)
+  //TODO
+  void _sendMessage(String _messageContents) async {
+    String buttonText;
+    try {
+      buttonText = await platform.invokeMethod<String>('sendMessage', {'message': _messageContents}) ?? '送信完了';
+    } on PlatformException catch (e) {
+      buttonText = "$e";
+    }
+    setState(() {
+      _buttonText = buttonText;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-        Text("Mesh Talk メインページ"),
-        ElevatedButton(
-            onPressed: () {
-            // 仮の関数
-            print("送信ボタンが押されました");
-            },
-          child: Text("送信"),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Mesh Talk メインページ"),
+            ElevatedButton(
+              onPressed: () {
+                _sendMessage(_messageContents);
+                debugPrint("送信ボタンが押されました");
+              },
+              child: Text(_buttonText),
+            ),
+          ],
         ),
-        ],
-      ),
       ),
     );
   }
 }
-
-
