@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 final Uri privacyURL = Uri.parse('https://youtube.com');
 
+// ignore: strict_top_level_inference
 Future<void> checkAndRequestPermissions(context) async {
   final permissions = [
     Permission.bluetooth,

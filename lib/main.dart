@@ -25,9 +25,9 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  static const platform = MethodChannel('meshtalk.flutter.dev/send-message');
+  static const platform = MethodChannel('meshtalk.flutter.dev/contact');
 
-  String _messageContents = 'お水ちょーだい!';
+  final String _messageContents = 'お水ちょーだい!';
   String _buttonText = '送信';
   bool _dialogShown = false;
   @override
@@ -44,11 +44,11 @@ class _MainPageState extends State<MainPage> {
     });
   }
   //メッセージを送信するKotlin関数を呼び出している(copilot製)
-  //TODO
-  void _sendMessage(String _messageContents) async {
+  //.\android\app\src\main\kotlin\com\example\meshtalk\MainActivity.kt
+  void _sendMessage(String messageContents) async {
     String buttonText;
     try {
-      buttonText = await platform.invokeMethod<String>('sendMessage', {'message': _messageContents}) ?? '送信完了';
+      buttonText = await platform.invokeMethod<String>('sendMessage', {'message': messageContents}) ?? '送信完了';
     } on PlatformException catch (e) {
       buttonText = "$e";
     }
