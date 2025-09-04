@@ -16,6 +16,7 @@ Future<void> checkAndRequestPermissions(context) async {
     Permission.location,
     Permission.notification,
   ];
+  bool popShown = false;
 
   for (final permission in permissions) {
     final status = await permission.status;
@@ -24,8 +25,9 @@ Future<void> checkAndRequestPermissions(context) async {
       showPop(context);
       final result = await permission.request();
 
-      if (!result.isGranted) {
+      if (!result.isGranted && !popShown) {
         showPop(context);
+        popShown = true;
       }
     }
   }

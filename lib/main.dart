@@ -29,18 +29,13 @@ class _MainPageState extends State<MainPage> {
 
   final String _messageContents = 'お水ちょーだい!';
   String _buttonText = '送信';
-  bool _dialogShown = false;
   @override
   void initState() {
     super.initState();
 
     // 描画が終わったあとにダイアログを表示
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_dialogShown) {
         showPop(context);
-        checkAndRequestPermissions(context);
-        _dialogShown = true;
-      }
     });
   }
   //メッセージを送信するKotlin関数を呼び出している(copilot製)
