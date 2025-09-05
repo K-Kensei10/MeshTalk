@@ -12,7 +12,17 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(title: 'Mesh Talk', home: MainPage());
+    return MaterialApp(
+      title: 'Mesh Talk',
+            theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        useMaterial3: true,
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+      ),
+      home: MainPage()
+      );
   }
 }
 
@@ -35,7 +45,7 @@ class _MainPageState extends State<MainPage> {
 
     // 描画が終わったあとにダイアログを表示
     WidgetsBinding.instance.addPostFrameCallback((_) {
-        showPop(context);
+      checkAndRequestPermissions(context);
     });
   }
   //メッセージを送信するKotlin関数を呼び出している(copilot製)

@@ -1,13 +1,12 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 final Uri privacyURL = Uri.parse('https://youtube.com');
 
 // ignore: strict_top_level_inference
-Future<void> checkAndRequestPermissions(context) async {
+void checkAndRequestPermissions(context) async {
   final permissions = [
     Permission.bluetooth,
     Permission.bluetoothAdvertise,
