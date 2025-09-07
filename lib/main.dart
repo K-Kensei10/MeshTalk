@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'package:flutter/services.dart';
-import 'package:meshtalk/permission_request.dart';
 import 'package:meshtalk/phone_number_request.dart';
+import 'package:meshtalk/sns.dart';
+import 'package:meshtalk/safety_sheack_meassage.dart';
+import 'package:meshtalk/goverment_message.dart';
+import 'package:meshtalk/host_auth.dart';
+import 'package:meshtalk/goverment_mode.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(const MyApp());
 }
 
 // アプリ全体で共有するデータ（シンプルな状態管理として利用）
@@ -19,13 +21,13 @@ class AppData {
 }
 
 //テーマ調整
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mesh Talk',
+      title: '避難所アプリ',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         fontFamily: 'Noto Sans JP',
@@ -36,16 +38,8 @@ class MainApp extends StatelessWidget {
   }
 }
 
-// ================= 電話番号入力画面 =================
-class PhoneInputPage extends StatefulWidget {
-  const PhoneInputPage({super.key});
-
-  @override
-  State<PhoneInputPage> createState() => PhoneInputPageState();
-}
-
+//メインページ
 class MainPage extends StatefulWidget {
-  //widgetに分けて書いていく
   const MainPage({super.key});
 
   @override
@@ -53,72 +47,85 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  static const platform = MethodChannel('meshtalk.flutter.dev/contact');
-  final _myController = TextEditingController();
+  int _selectedIndex = 0;
 
-  String _buttonText = '送信';
-  @override
-  void initState() {
-    super.initState();
+  final List<Widget> _pages = [
+    const ShelterSNSPage(),
+    const SafetyCheckPage(),
+    const LocalGovernmentPage(),
+  ];
 
-    // 描画が終わったあとにダイアログを表示
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      checkAndRequestPermissions(context);
-    });
-  }
-
-  //メッセージを送信するKotlin関数を呼び出している(copilot製)
-  //.\android\app\src\main\kotlin\com\example\meshtalk\MainActivity.kt
-  void _sendMessage(String? messageContents) async {
-    String buttonText;
-    String phoneNumContents = '01234567890';
-    String messageTypeContent = '1';
-    String targetPhoneNumContents = '09876543210';
-    if (messageContents == null) {
-      //nullをエラーではじくようなコードを作る
-    }
-    try {
-      buttonText =
-          await platform.invokeMethod<String>('createMessage', {
-            'message': messageContents,
-            'phoneNum': phoneNumContents,
-            'messageType': messageTypeContent,
-            'targetPhoneNum': targetPhoneNumContents,
-          }) ??
-          '送信完了';
-    } on PlatformException catch (e) {
-      buttonText = "$e";
-    }
+  void _onItemTapped(int index) {
     setState(() {
-      _buttonText = buttonText;
+      _selectedIndex = index;
     });
-  }
-
-  @override
-  void dispose() {
-    _myController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text("Mesh Talk メインページ"),
-            ElevatedButton(
-              onPressed: () {
-                _sendMessage(_myController.text);
-                debugPrint("送信ボタンが押されました");
-              },
-              child: Text(_buttonText),
-            ),
-            TextField(controller: _myController),
-          ],
-        ),
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "避難所SNS"),
+          BottomNavigationBarItem(icon: Icon(Icons.security), label: "安否確認"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance),
+            label: "自治体連絡",
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
       ),
     );
   }
+}
+
+// ================= 電話番号入力画面 =================
+class PhoneInputPage extends StatefulWidget {
+  const PhoneInputPage({super.key});
+
+  //lib\phone_number_request.dart
+  @override
+  State<PhoneInputPage> createState() => PhoneInputPageState();
+}
+
+// ================= タブ1：自治体連絡 =================
+class LocalGovernmentPage extends StatefulWidget {
+  const LocalGovernmentPage({super.key});
+
+  @override
+  State<LocalGovernmentPage> createState() => LocalGovernmentPageState();
+}
+
+// ================= タブ2：安否確認 =================
+class SafetyCheckPage extends StatefulWidget {
+  const SafetyCheckPage({super.key});
+
+  @override
+  State<SafetyCheckPage> createState() => SafetyCheckPageState();
+}
+
+// ================= タブ3：避難所SNS =================
+class ShelterSNSPage extends StatefulWidget {
+  const ShelterSNSPage({super.key});
+
+  @override
+  State<ShelterSNSPage> createState() => ShelterSNSPageState();
+}
+
+// ================= ホストモード認証ページ =================
+class HostAuthPage extends StatefulWidget {
+  const HostAuthPage({super.key});
+
+  @override
+  State<HostAuthPage> createState() => HostAuthPageState();
+}
+
+// ================= ホストモード（自治体）ページ =================
+class GovernmentHostPage extends StatefulWidget {
+  const GovernmentHostPage({super.key});
+
+  @override
+  State<GovernmentHostPage> createState() => GovernmentHostPageState();
 }
