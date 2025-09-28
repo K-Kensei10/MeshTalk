@@ -5,6 +5,7 @@ import 'package:meshtalk/safety_sheack_meassage.dart';
 import 'package:meshtalk/goverment_message.dart';
 import 'package:meshtalk/host_auth.dart';
 import 'package:meshtalk/goverment_mode.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const MyApp());
@@ -50,7 +51,7 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const ShelterSNSPage(),
+    const ShelterSNSPage(), 
     const SafetyCheckPage(),
     const LocalGovernmentPage(),
   ];
@@ -62,6 +63,16 @@ class _MainPageState extends State<MainPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    // 描画が終わったあとにダイアログを表示
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkAndRequestPermissions();
+  });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
@@ -69,10 +80,7 @@ class _MainPageState extends State<MainPage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "避難所SNS"),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: "安否確認"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance),
-            label: "自治体連絡",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance),label: "自治体連絡",),
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -80,6 +88,29 @@ class _MainPageState extends State<MainPage> {
     );
   }
 }
+
+//権限要求
+void checkAndRequestPermissions() async{
+  final permissions = [
+    Permission.bluetooth,
+    Permission.bluetoothAdvertise,
+    Permission.bluetoothConnect,
+    Permission.bluetoothScan,
+    Permission.location,
+    Permission.notification,
+  ];
+
+  for (final permission in permissions) {
+    final status = await permission.status;
+    print("a");
+
+    if (!status.isGranted) {
+      await permission.request();
+      print("askd");
+    }
+  }
+}
+
 
 // ================= 電話番号入力画面 =================
 class PhoneInputPage extends StatefulWidget {

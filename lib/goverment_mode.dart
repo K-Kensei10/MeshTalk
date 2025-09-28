@@ -95,7 +95,7 @@ class GovernmentHostPageState extends State<GovernmentHostPage> {
                     trailing: Text(msg['time'] ?? ""),
                   ),
                 );
-              }).toList(),
+              }),
             const SizedBox(height: 16),
             const Text(
               "中継メッセージ管理 (開発中)",

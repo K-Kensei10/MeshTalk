@@ -1,7 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:meshtalk/main.dart';
+import 'package:flutter/services.dart';
 
 class LocalGovernmentPageState extends State<LocalGovernmentPage> {
+  static const methodChannel = MethodChannel('meshtalk.flutter.dev/contact');
+
+  void _sendMessage(String message, String phoneNum, String messageType, String targetPhoneNum) async {
+    try {
+      await methodChannel.invokeMethod<String>('sendMessage', {
+        'message': message,
+        'phoneNum': phoneNum,
+        'messageType': messageType,
+        'targetPhoneNum': targetPhoneNum,
+      });
+    } on PlatformException catch (e) {
+      debugPrint("$e");
+    }
+  }
+
   void _showMessageModal() {
     showDialog(
       context: context,
@@ -62,6 +78,16 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
                   onPressed: () {
                     if (selectedSubject != null &&
                         detailController.text.isNotEmpty) {
+                      //Kotlin呼び出しmessage
+                      _sendMessage(
+                        detailController.text, // message
+                        "000000000000",
+                        // AppData.myPhoneNum ?? "", // phoneNum
+                        selectedSubject ?? "その他", // messageType
+                        // AppData.governmentPhoneNum ?? "", // targetPhoneNum
+                        "09000000000"
+                      );
+
                       AppData.receivedMessages.add({
                         "subject": selectedSubject!,
                         "detail": detailController.text,

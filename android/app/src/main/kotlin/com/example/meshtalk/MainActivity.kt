@@ -7,31 +7,48 @@ import io.flutter.plugin.common.MethodChannel;
 import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.le.ScanFilter;
-import android.bluetooth.le.AdvertisingSetCallback;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanSettings
-import android.Manifest;
+import android.bluetooth.le.*
+import android.os.Build
 import java.security.Policy
 import java.util.*
+import android.util.Log
+val UUID = "86411acb-96e9-45a1-90f2-e392533ef877"
 
 //BLT class
 class BluetoothLeController(public val activity : Activity) {
     private var bluetoothAdapter: BluetoothAdapter? = null
-    private var enable : Boolean = false
+    private var isScanning : Boolean = false
     private var Scanner : BluetoothLeScanner? = null
     private lateinit var mScanCallback : ScanCallback
-    private val permissions = arrayOf(Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_FINE_LOCATION)
     private var scanFilter: ScanFilter? = null
     private var scanFilterList: ArrayList<ScanFilter> = ArrayList()
 
-    fun ScanStart() {
-        if (enable) return;
-    }
+    fun StartScan() {
+        if(isScanning) return
+        val scanSettings: ScanSettings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
 
+        mScanCallback = object : ScanCallback() {
+          override fun onScanResult(callbackType: Int,result:ScanResult) {
+            super.onScanResult(callbackType, result)
+            Log.d("scanResult", "${result.device.address} ${result.device.name}")
+          }
+          override fun onScanFailed(errorCode: Int) {
+            super.onScanFailed(errorCode)
+          }
+        }
+        var adapter = BluetoothAdapter.getDefaultAdapter()
+        if (adapter == null) return;
+        var scanner = adapter.bluetoothLeScanner
+        if (scanner == null) return;
+        scanner.startScan(scanFilterList,scanSettings,mScanCallback)
+        isScanning = true
+    }
+    //TODO
+    //scanStop関数
 
 
 
@@ -48,21 +65,18 @@ class MainActivity : FlutterActivity() {
                 call,
                 result ->
             // 実行させる内容↓
-            if (call.method == "createMessage") {
-                val message = call.argument<String>("message")
-                val phoneNum = call.argument<String>("phoneNum")
-                val messageType = call.argument<String>("messageType")
-                val targetPhoneNum = call.argument<String>("targetPhoneNum")
+            if (call.method == "sendMessage") {
+                val message = call.argument<String>("message") ?: ""
+                val phoneNum = call.argument<String>("phoneNum") ?: ""
+                val messageType = call.argument<String>("messageType") ?: ""
+                val targetPhoneNum = call.argument<String>("targetPhoneNum") ?: ""
                 val TTL = 150
-                val separator = "";/:""
+                val separator = "*****"
 
                 val disaster_message_data = messageType + separator + phoneNum +separator + targetPhoneNum + separator + TTL + separator + message
-            } else {
-                result.notImplemented()
-            }
-
-            if (call.method == "sendMessage") {
-              val bluetoothStatus = true
+                Log.d("MainActivity", disaster_message_data)
+                val bleController = BluetoothLeController(this)
+                bleController.StartScan()
             } else {
                 result.notImplemented()
             }
