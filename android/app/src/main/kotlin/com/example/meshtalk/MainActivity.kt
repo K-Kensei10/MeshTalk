@@ -24,68 +24,68 @@ val UUID = ParcelUuid.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
 
 //BLT class
 class BluetoothLeController(public val activity : Activity) {
-    private val bluetoothManager = activity.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as BluetoothManager
-    private var isScanning : Boolean = false
-    private var Scanner : BluetoothLeScanner? = null
-    private lateinit var mScanCallback : ScanCallback
-    private var scanFilter: ScanFilter? = null
-    val scanFilterList = arrayListOf(ScanFilter.Builder().setServiceUuid(UUID).build())
-    private val handler = Handler(Looper.getMainLooper())
-    var scanResults = mutableListOf<ScanResult>()
-    private val adapter: BluetoothAdapter? = bluetoothManager.adapter
-    private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
+  private val bluetoothManager = activity.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as BluetoothManager
+  private var isScanning : Boolean = false
+  private var Scanner : BluetoothLeScanner? = null
+  private lateinit var mScanCallback : ScanCallback
+  private var scanFilter: ScanFilter? = null
+  val scanFilterList = arrayListOf(ScanFilter.Builder().setServiceUuid(UUID).build())
+  private val handler = Handler(Looper.getMainLooper())
+  var scanResults = mutableListOf<ScanResult>()
+  private val adapter: BluetoothAdapter? = bluetoothManager.adapter
+  private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
 
-    //スキャン停止までの時間
-    private val SCAN_PERIOD: Long = 300
+  //スキャン停止までの時間
+  private val SCAN_PERIOD: Long = 3000
 
-    //scanを始める
-    fun scanLeDevice(onResult: (Boolean) -> Unit) {
-        if(!isScanning) {
-          handler.postDelayed({
-            isScanning = false
-            stopScanLeDevice()
-            Log.d("BLE","スキャンストップ")
-            if (scanResults.isEmpty()) {
-              Log.d("BLE", "検出されたデバイスはありません")
-              onResult(false)
-            }else {
-              for (result in scanResults) {
-                val name = result.device.name ?: "Unknown"
-                val address = result.device.address
-                val rssi = result.rssi
-                Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi")
-                onResult(true)
-              }
-            }
-          }, SCAN_PERIOD)
-          isScanning = true
-          val scanSettings: ScanSettings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-            .build()
-
-          mScanCallback = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int,result:ScanResult) {
-              //前に取得したことがない&&信号強度が強いもののみ
-              if (result.rssi >= -70 && scanResults.none { it.device.address == result.device.address }) {
-                scanResults.add(result)
-              }
-            }
-            override fun onScanFailed(errorCode: Int) {
-              super.onScanFailed(errorCode)
-            }
+  //scanを始める
+  fun scanLeDevice(onResult: (Boolean) -> Unit) {
+    if(!isScanning) {
+      handler.postDelayed({
+        isScanning = false
+        stopScanLeDevice()
+        Log.d("BLE","スキャンストップ")
+        if (scanResults.isEmpty()) {
+          Log.d("BLE", "検出されたデバイスはありません")
+          onResult(false)
+        }else {
+          for (result in scanResults) {
+            val name = result.device.name ?: "Unknown"
+            val address = result.device.address
+            val rssi = result.rssi
+            Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi")
+            onResult(true)
           }
-          if (!isScanning || scanner == null) {
-            onResult(false)
-            return
-          }
-          scanner.startScan(scanFilterList,scanSettings,mScanCallback)
         }
+      }, SCAN_PERIOD)
+      isScanning = true
+      val scanSettings: ScanSettings = ScanSettings.Builder()
+        .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+        .build()
+
+      mScanCallback = object : ScanCallback() {
+        override fun onScanResult(callbackType: Int,result:ScanResult) {
+          //前に取得したことがない&&信号強度が強いもののみ
+          if (result.rssi >= -70 && scanResults.none { it.device.address == result.device.address }) {
+            scanResults.add(result)
+          }
+        }
+        override fun onScanFailed(errorCode: Int) {
+          super.onScanFailed(errorCode)
+        }
+      }
+      if (!isScanning || scanner == null) {
+        onResult(false)
+        return
+      }
+      scanner.startScan(scanFilterList,scanSettings,mScanCallback)
     }
-    //scanStop関数
-    fun stopScanLeDevice() {
-      if (!isScanning || scanner == null) return
-      scanner.stopScan(mScanCallback)
-    }
+  }
+  //scanStop関数
+  fun stopScanLeDevice() {
+    if (!isScanning || scanner == null) return
+    scanner.stopScan(mScanCallback)
+  }
 }
 
 
@@ -117,8 +117,8 @@ class MainActivity : FlutterActivity() {
               }
             }
           }
+          else -> result.notImplemented()
         }
-        else -> result.notImplemented()
     }
   }
 }
