@@ -102,11 +102,9 @@ void checkAndRequestPermissions() async{
 
   for (final permission in permissions) {
     final status = await permission.status;
-    print("a");
 
     if (!status.isGranted) {
       await permission.request();
-      print("askd");
     }
   }
 }
