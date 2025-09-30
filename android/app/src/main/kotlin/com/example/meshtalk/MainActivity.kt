@@ -32,13 +32,14 @@ class BluetoothLeController(public val activity : Activity) {
     val scanFilterList = arrayListOf(ScanFilter.Builder().setServiceUuid(UUID).build())
     private val handler = Handler(Looper.getMainLooper())
     var scanResults = mutableListOf<ScanResult>()
+    private val adapter: BluetoothAdapter? = bluetoothManager.adapter
+    private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
 
     //スキャン停止までの時間
     private val SCAN_PERIOD: Long = 300
 
     //scanを始める
-    //TODO https://developer.android.com/develop/connectivity/bluetooth/ble/find-ble-devices?hl=ja#kotlin
-    fun scanLeDevice() {
+    fun scanLeDevice(onResult: (Boolean) -> Unit) {
         if(!isScanning) {
           handler.postDelayed({
             isScanning = false
@@ -46,12 +47,14 @@ class BluetoothLeController(public val activity : Activity) {
             Log.d("BLE","スキャンストップ")
             if (scanResults.isEmpty()) {
               Log.d("BLE", "検出されたデバイスはありません")
+              onResult(false)
             }else {
               for (result in scanResults) {
                 val name = result.device.name ?: "Unknown"
                 val address = result.device.address
                 val rssi = result.rssi
                 Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi")
+                onResult(true)
               }
             }
           }, SCAN_PERIOD)
@@ -71,53 +74,53 @@ class BluetoothLeController(public val activity : Activity) {
               super.onScanFailed(errorCode)
             }
           }
-          var adapter = bluetoothManager.adapter
-          if (adapter == null) return;
-          var scanner = adapter.bluetoothLeScanner
-          if (scanner == null) return;
+          if (!isScanning || scanner == null) {
+            onResult(false)
+            return
+          }
           scanner.startScan(scanFilterList,scanSettings,mScanCallback)
         }
     }
-    //TODO
     //scanStop関数
     fun stopScanLeDevice() {
-      if (!isScanning) return 
-      var adapter = bluetoothManager.adapter
-      if (adapter == null) return;
-      var scanner = adapter.bluetoothLeScanner
-      if (scanner == null) return;
+      if (!isScanning || scanner == null) return
       scanner.stopScan(mScanCallback)
     }
 }
 
 
-// これでネイティブ側のプログラムを実行してる
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "meshtalk.flutter.dev/contact"
+  private val CHANNEL = "meshtalk.flutter.dev/contact"
 
-    override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
-                call,
-                result ->
-            // 実行させる内容↓
-            if (call.method == "sendMessage") {
-                val message = call.argument<String>("message") ?: ""
-                val phoneNum = call.argument<String>("phoneNum") ?: ""
-                val messageType = call.argument<String>("messageType") ?: ""
-                val targetPhoneNum = call.argument<String>("targetPhoneNum") ?: ""
-                val TTL = 150
-                val separator = "*****"
+  override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
+    super.configureFlutterEngine(flutterEngine)
+    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
+      call, result ->
+        when (call.method) {
+          "sendMessage" -> {
+            val message = call.argument<String>("message") ?: ""
+            val phoneNum = call.argument<String>("phoneNum") ?: ""
+            val messageType = call.argument<String>("messageType") ?: ""
+            val targetPhoneNum = call.argument<String>("targetPhoneNum") ?: ""
+            val TTL = 150
+            val separator = "*****"
 
-                val disaster_message_data = messageType + separator + phoneNum +separator + targetPhoneNum + separator + TTL + separator + message
-                Log.d("MainActivity", disaster_message_data)
-                val bleController = BluetoothLeController(this)
-                bleController.scanLeDevice()
-            } else {
-                result.notImplemented()
+            val disaster_message_data = messageType + separator + phoneNum +separator + targetPhoneNum + separator + TTL + separator + message
+            Log.d("MainActivity", disaster_message_data)
+            val bleController = BluetoothLeController(this)
+            bleController.scanLeDevice { success ->
+              if (success) {
+                result.success("scan_success")
+                //アドバタイズの処理
+              }else {
+                result.error("SCAN_FAILD", "No devices found", null)
+              }
             }
+          }
         }
+        else -> result.notImplemented()
     }
+  }
 }
 
 
