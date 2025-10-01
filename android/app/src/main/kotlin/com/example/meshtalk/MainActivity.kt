@@ -28,20 +28,24 @@ class BluetoothLeController(public val activity : Activity) {
   private var isScanning : Boolean = false
   private var Scanner : BluetoothLeScanner? = null
   private lateinit var mScanCallback : ScanCallback
-  private var scanFilter: ScanFilter? = null
-  val scanFilterList = arrayListOf(ScanFilter.Builder().setServiceUuid(UUID).build())
+  // private var scanFilter: ScanFilter? = null
+  //ScanFilter.Builder().setServiceUuid(UUID).build()
+  val scanFilterList = arrayListOf<ScanFilter>()
   private val handler = Handler(Looper.getMainLooper())
   var scanResults = mutableListOf<ScanResult>()
   private val adapter: BluetoothAdapter? = bluetoothManager.adapter
   private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
   private val advertiser: BluetoothLeAdvertiser? = adapter?.bluetoothLeAdvertiser
   private lateinit var mAdvertiseCallback : AdvertiseCallback
+  init {adapter?.name = "MT"}
+
 
   //スキャン停止までの時間
-  private val SCAN_PERIOD: Long = 3000
+  private val SCAN_PERIOD: Long = 10000
 
   //scanを始める
   fun scanLeDevice(onResult: (Map<String, String>) -> Unit) {
+    scanResults.clear()
     if(!isScanning) {
       handler.postDelayed({
         isScanning = false
@@ -55,7 +59,13 @@ class BluetoothLeController(public val activity : Activity) {
           ))
         }else {
           for (result in scanResults) {
-            val name = result.device.name ?: "Unknown"
+            val name = result.scanRecord?.deviceName ?: result.device.name ?: "Unknown"
+            val uuids = result.scanRecord?.serviceUuids
+            Log.d("BLE_SCAN", "serviceUuids = $uuids")  
+            Log.d("BLE_SCAN", "scanRecord.deviceName = ${result.scanRecord?.deviceName}")
+            Log.d("BLE_SCAN", "device.name = ${result.device.name}")
+            val rawBytes = result.scanRecord?.bytes
+            Log.d("BLE_SCAN", "Raw ScanRecord bytes: ${rawBytes?.joinToString(",")}")
             val address = result.device.address
             val rssi = result.rssi
             Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi")
@@ -69,13 +79,17 @@ class BluetoothLeController(public val activity : Activity) {
       isScanning = true
 
       val scanSettings: ScanSettings = ScanSettings.Builder()
-        .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
         .build()
 
       mScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int,result:ScanResult) {
           //前に取得したことがない&&信号強度が強いもののみ
           if (result.rssi >= -70 && scanResults.none { it.device.address == result.device.address }) {
+            val uuids = result.scanRecord?.serviceUuids
+            if (uuids?.contains(UUID) == true) {
+              Log.d("BLE","$result")
+            }
             scanResults.add(result)
           }
         }
