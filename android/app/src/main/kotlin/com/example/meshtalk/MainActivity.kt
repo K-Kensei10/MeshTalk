@@ -28,23 +28,23 @@ class BluetoothLeController(public val activity : Activity) {
   private var isScanning : Boolean = false
   private var Scanner : BluetoothLeScanner? = null
   private lateinit var mScanCallback : ScanCallback
-  // private var scanFilter: ScanFilter? = null
-  //ScanFilter.Builder().setServiceUuid(UUID).build()
-  val scanFilterList = arrayListOf<ScanFilter>()
+  private var scanFilter: ScanFilter? = null
   private val handler = Handler(Looper.getMainLooper())
   var scanResults = mutableListOf<ScanResult>()
   private val adapter: BluetoothAdapter? = bluetoothManager.adapter
   private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
   private val advertiser: BluetoothLeAdvertiser? = adapter?.bluetoothLeAdvertiser
   private lateinit var mAdvertiseCallback : AdvertiseCallback
-  init {adapter?.name = "MT"}
+  init {adapter?.name = "AL"}
 
 
   //スキャン停止までの時間
   private val SCAN_PERIOD: Long = 10000
 
-  //scanを始める
+  //scanの開始
   fun scanLeDevice(onResult: (Map<String, String>) -> Unit) {
+    //Bluetoothの権限の確認&BluetoothがONになっているかどうかを調べる関数
+    
     scanResults.clear()
     if(!isScanning) {
       handler.postDelayed({
@@ -78,10 +78,18 @@ class BluetoothLeController(public val activity : Activity) {
       }, SCAN_PERIOD)
       isScanning = true
 
+      //スキャン設定
       val scanSettings: ScanSettings = ScanSettings.Builder()
-        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+        .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
         .build()
 
+      val scanFilterList = arrayListOf<ScanFilter>()
+      val scanUuidFilter : ScanFilter = ScanFilter.Builder()
+        .setServiceUuid(UUID)
+        .build()
+      scanFilterList.add(scanUuidFilter)
+
+      //コールバック
       mScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int,result:ScanResult) {
           //前に取得したことがない&&信号強度が強いもののみ
@@ -116,28 +124,30 @@ class BluetoothLeController(public val activity : Activity) {
   //Bluetoothの権限の確認&BluetoothがONになっているかどうかを調べる関数
   //TODO
 
-  //アドバタイズの開始
+  //Advertiseの開始
   fun startAdvertising(onResult: (Map<String, String>) -> Unit) {
     if (advertiser == null) {
       Log.e("BLE_AD", "このデバイスはBLEアドバタイズに対応していません")
       onResult(mapOf(
-        "status" to "not_used_ble",
+        "status" to "not_use_ble",
         "message" to "このデバイスは対応していないバージョンです"
       ))
       return
     }
 
+    //アドバタイズ設定
     val advertiseSetting = AdvertiseSettings.Builder()
-        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
         .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
         .setConnectable(true)
         .build()
 
     val advertiseData = AdvertiseData.Builder()
         .setIncludeDeviceName(true)
-        .addServiceUuid(ParcelUuid.fromString("86411acb-96e9-45a1-90f2-e392533ef877"))
+        .addServiceUuid(UUID)
         .build()
 
+    //コールバック
     mAdvertiseCallback = object : AdvertiseCallback() {
       override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
         Log.d("BLE_AD", "アドバタイズ開始成功")
