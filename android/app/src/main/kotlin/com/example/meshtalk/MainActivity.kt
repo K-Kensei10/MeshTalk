@@ -20,7 +20,7 @@ import android.os.ParcelUuid
 
 import android.util.Log
 
-val UUID = ParcelUuid.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
+val ConnectUUID = ParcelUuid.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
 
 //BLT class
 class BluetoothLeController(public val activity : Activity) {
@@ -48,32 +48,31 @@ class BluetoothLeController(public val activity : Activity) {
     scanResults.clear()
     if(!isScanning) {
       handler.postDelayed({
-        isScanning = false
-        stopScanLeDevice()
-        Log.d("BLE","スキャンストップ")
-        if (scanResults.isEmpty()) {
-          Log.d("BLE", "検出されたデバイスはありません")
-          onResult(mapOf(
-            "status" to "device_not_found",
-            "message" to "検出されたデバイスはありません"
-          ))
-        }else {
-          for (result in scanResults) {
-            val name = result.scanRecord?.deviceName ?: result.device.name ?: "Unknown"
-            val uuids = result.scanRecord?.serviceUuids
-            Log.d("BLE_SCAN", "serviceUuids = $uuids")  
-            Log.d("BLE_SCAN", "scanRecord.deviceName = ${result.scanRecord?.deviceName}")
-            Log.d("BLE_SCAN", "device.name = ${result.device.name}")
-            val rawBytes = result.scanRecord?.bytes
-            Log.d("BLE_SCAN", "Raw ScanRecord bytes: ${rawBytes?.joinToString(",")}")
-            val address = result.device.address
-            val rssi = result.rssi
-            Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi")
+        try{
+          scanner?.stopScan(mScanCallback)
+          isScanning = false
+          Log.d("BLE","スキャンストップ")
+          if (scanResults.isEmpty()) {
+            Log.d("BLE", "検出されたデバイスはありません")
             onResult(mapOf(
-              "status" to "scan_successful",
-              "message" to "デバイスのスキャン完了"
+              "status" to "device_not_found",
+              "message" to "検出されたデバイスはありません"
             ))
+          }else {
+            for (result in scanResults) {
+              val name = result.scanRecord?.deviceName ?: result.device.name ?: "Unknown"
+              val uuids = result.scanRecord?.serviceUuids
+              val address = result.device.address
+              val rssi = result.rssi
+              Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi, UUID: $uuids")
+              onResult(mapOf(
+                "status" to "scan_successful",
+                "message" to "デバイスのスキャン完了"
+              ))
+            }
           }
+        }catch (e: Exception) {
+          Log.e("BLE", "スキャン停止時に例外: ${e.message}")
         }
       }, SCAN_PERIOD)
       isScanning = true
@@ -85,17 +84,18 @@ class BluetoothLeController(public val activity : Activity) {
 
       val scanFilterList = arrayListOf<ScanFilter>()
       val scanUuidFilter : ScanFilter = ScanFilter.Builder()
-        .setServiceUuid(UUID)
+        .setServiceUuid(ConnectUUID)
         .build()
       scanFilterList.add(scanUuidFilter)
 
       //コールバック
       mScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int,result:ScanResult) {
+          Log.d("BLE","$result")
           //前に取得したことがない&&信号強度が強いもののみ
-          if (result.rssi >= -70 && scanResults.none { it.device.address == result.device.address }) {
+          if (result.rssi >= -90 && scanResults.none { it.device.address == result.device.address }) {
             val uuids = result.scanRecord?.serviceUuids
-            if (uuids?.contains(UUID) == true) {
+            if (uuids?.contains(ConnectUUID) == true) {
               Log.d("BLE","$result")
             }
             scanResults.add(result)
@@ -112,17 +112,13 @@ class BluetoothLeController(public val activity : Activity) {
         ))
         return
       }
+      scanner.stopScan(mScanCallback)
       scanner.startScan(scanFilterList,scanSettings,mScanCallback)
     }
   }
-  //scanStop関数
-  fun stopScanLeDevice() {
-    if (!isScanning || scanner == null) return
-    scanner.stopScan(mScanCallback)
-  }
 
-  //Bluetoothの権限の確認&BluetoothがONになっているかどうかを調べる関数
-  //TODO
+
+
 
   //Advertiseの開始
   fun startAdvertising(onResult: (Map<String, String>) -> Unit) {
@@ -135,6 +131,9 @@ class BluetoothLeController(public val activity : Activity) {
       return
     }
 
+    //Bluetoothの権限の確認&BluetoothがONになっているかどうかを調べる関数
+    //TODO
+
     //アドバタイズ設定
     val advertiseSetting = AdvertiseSettings.Builder()
         .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
@@ -144,7 +143,7 @@ class BluetoothLeController(public val activity : Activity) {
 
     val advertiseData = AdvertiseData.Builder()
         .setIncludeDeviceName(true)
-        .addServiceUuid(UUID)
+        .addServiceUuid(ConnectUUID)
         .build()
 
     //コールバック
