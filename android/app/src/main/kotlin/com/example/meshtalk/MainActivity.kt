@@ -10,7 +10,10 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.le.*
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattServerCallback
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -33,15 +36,16 @@ class BluetoothLeController(public val activity : Activity) {
   private val context: Context = activity
   private var isScanning : Boolean = false
   private var isAdvertising : Boolean  = false
-  private var Scanner : BluetoothLeScanner? = null
-  private lateinit var mScanCallback : ScanCallback
   private var scanFilter: ScanFilter? = null
   private val handler = Handler(Looper.getMainLooper())
-  var scanResults = mutableListOf<ScanResult>()
   private val adapter: BluetoothAdapter? = bluetoothManager.adapter
   private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
   private val advertiser: BluetoothLeAdvertiser? = adapter?.bluetoothLeAdvertiser
+  private val GattServer: BluetoothGattServer? = bluetoothManager.openGattServer(context,mGattServerCallback)
+  var scanResults = mutableListOf<ScanResult>()
+  private lateinit var mScanCallback : ScanCallback
   private lateinit var mAdvertiseCallback : AdvertiseCallback
+  private lateinit var mGattServerCallback : BluetoothGattServerCallback
   init {adapter?.name = "AL"}
 
 
@@ -49,7 +53,7 @@ class BluetoothLeController(public val activity : Activity) {
   private val SCAN_PERIOD: Long = 3000
   private val ADVERTISE_PERIOD: Long = 60 * 1000
 
-  //scanの開始
+  //================= スキャン =================
   fun scanLeDevice(onResult: (Map<String, String>) -> Unit) {
     // BluetoothがOnになっているか
     if (adapter?.isEnabled != true) {
@@ -153,9 +157,7 @@ class BluetoothLeController(public val activity : Activity) {
   }
 
 
-
-
-  //Advertiseの開始
+  //================= アドバタイズ =================
   fun startAdvertising(onResult: (Map<String, String>) -> Unit) {
     if (advertiser == null) {
       Log.e("BLE_AD", "このデバイスはBLEアドバタイズに対応していません")
@@ -184,50 +186,52 @@ class BluetoothLeController(public val activity : Activity) {
     return
     }
 
-      //アドバタイズ設定
-      val advertiseSetting = AdvertiseSettings.Builder()
-          .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
-          .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
-          .setConnectable(true)
-          .build()
+    //アドバタイズ設定
+    val advertiseSetting = AdvertiseSettings.Builder()
+        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+        .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+        .setConnectable(true)
+        .build()
 
-      val advertiseData = AdvertiseData.Builder()
-          .setIncludeDeviceName(true)
-          .addServiceUuid(ConnectUUID)
-          .build()
+    val advertiseData = AdvertiseData.Builder()
+        .setIncludeDeviceName(true)
+        .addServiceUuid(ConnectUUID)
+        .build()
 
-      //コールバック
-      mAdvertiseCallback = object : AdvertiseCallback() {
-        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-          Log.d("BLE_AD", "アドバタイズ開始成功")
+    //コールバック
+    mAdvertiseCallback = object : AdvertiseCallback() {
+      override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+        Log.d("BLE_AD", "アドバタイズ開始成功")
+        onResult(mapOf(
+          "status" to "advertise_started",
+          "message" to "アドバタイズを開始しました"
+        ))
+        handler.postDelayed({
+          advertiser.stopAdvertising(mAdvertiseCallback)
+          Log.e("BLE_AD", "アドバタイズの停止")
           onResult(mapOf(
-            "status" to "advertise_started",
-            "message" to "アドバタイズを開始しました"
+            "status" to "advertise_stopped",
+            "message" to "アドバタイズは正常に終了しました。"
           ))
-          handler.postDelayed({
-            advertiser.stopAdvertising(mAdvertiseCallback)
-            Log.e("BLE_AD", "アドバタイズの停止")
-            onResult(mapOf(
-              "status" to "advertise_stopped",
-              "message" to "アドバタイズは正常に終了しました。"
-            ))
-          },ADVERTISE_PERIOD)
-        }
-        override fun onStartFailure(errorCode: Int) {
-          Log.e("BLE_AD", "アドバタイズ失敗: $errorCode")
-          onResult(mapOf(
-            "status" to "advertise_failed",
-            "message" to "通信の開始に失敗しました。もう一度お試しください。（コード: $errorCode）"
-          ))
-        }
+        },ADVERTISE_PERIOD)
       }
-      advertiser.stopAdvertising(mAdvertiseCallback)
-      advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
+      override fun onStartFailure(errorCode: Int) {
+        Log.e("BLE_AD", "アドバタイズ失敗: $errorCode")
+        onResult(mapOf(
+          "status" to "advertise_failed",
+          "message" to "通信の開始に失敗しました。もう一度お試しください。（コード: $errorCode）"
+        ))
+      }
     }
+    advertiser.stopAdvertising(mAdvertiseCallback)
+    advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
   }
+  //================= GATT通信 =================
+  
 }
 
-//権限チェック
+
+//================= スキャン =================
 fun checkPermissions(context: Context, onResult: (String?) -> Unit) {
     val requiredPermissions = listOf(
         Manifest.permission.BLUETOOTH,
