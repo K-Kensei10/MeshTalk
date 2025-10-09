@@ -47,6 +47,7 @@ class BluetoothLeController(public val activity : Activity) {
 
   //スキャン停止までの時間
   private val SCAN_PERIOD: Long = 3000
+  private val ADVERTISE_PERIOD: Long = 60 * 1000
 
   //scanの開始
   fun scanLeDevice(onResult: (Map<String, String>) -> Unit) {
@@ -54,7 +55,7 @@ class BluetoothLeController(public val activity : Activity) {
     if (adapter?.isEnabled != true) {
       onResult(mapOf(
         "status" to "Bluetooth_off",
-        "message" to "BluetoothがOFFになっています"
+        "message" to "Bluetoothがオフになっています。設定からオンにしてください。"
       ))
       return
     }
@@ -63,7 +64,7 @@ class BluetoothLeController(public val activity : Activity) {
       if (permissionResult != null) {
         onResult(mapOf(
         "status" to "no_permissions",
-        "message" to "権限が不足しています"
+        "message" to "通信に必要な権限がありません。設定から許可してください。"
       ))
       }
     }
@@ -79,7 +80,7 @@ class BluetoothLeController(public val activity : Activity) {
             Log.d("BLE", "検出されたデバイスはありません")
             onResult(mapOf(
               "status" to "device_not_found",
-              "message" to "検出されたデバイスはありません"
+              "message" to "通信相手が見つかりませんでした。近くにあるか確認してください。"
             ))
           }else {
             for (result in scanResults) {
@@ -129,14 +130,14 @@ class BluetoothLeController(public val activity : Activity) {
           Log.d("BLE","スキャンに失敗しました（コード: $errorCode）")
           onResult(mapOf(
             "status" to "scan_failed",
-            "message" to "スキャンに失敗しました（コード: $errorCode）"
+            "message" to "通信の準備に失敗しました。もう一度お試しください。（コード: $errorCode）"
           ))
         }
       }
       if (!isScanning || scanner == null) {
         onResult(mapOf(
           "status" to "app_error",
-          "message" to "予期せぬエラーが発生しました"
+          "message" to "通信中に予期せぬエラーが発生しました。アプリを再起動してください。"
         ))
         return
       }
@@ -145,7 +146,7 @@ class BluetoothLeController(public val activity : Activity) {
     }else{
       Log.d("BLE","スキャンは既に実行されています")
       onResult(mapOf(
-        "status" to "scan_faild",
+        "status" to "scan_failed",
         "message" to "スキャンは既に実行されています"
       ))
     }
@@ -160,12 +161,12 @@ class BluetoothLeController(public val activity : Activity) {
       Log.e("BLE_AD", "このデバイスはBLEアドバタイズに対応していません")
       onResult(mapOf(
         "status" to "not_use_ble",
-        "message" to "このデバイスは対応していないバージョンです"
+        "message" to "この端末はBLE通信に対応していません。"
       ))
       return
     }
 
-    checkPermissions(context) { result ->//変数を受け取って関数を実行するアロー関数と一緒？
+    checkPermissions(context) { result ->
       if (result != null) {
         onResult(mapOf(
           "status" to "no_permissions",
@@ -173,6 +174,15 @@ class BluetoothLeController(public val activity : Activity) {
         ))
         return@checkPermissions // ← このラムダだけ抜ける = この関数だけ実行しない
       }
+    }
+      // BluetoothがOnになっているか
+    if (adapter?.isEnabled != true) {
+      onResult(mapOf(
+        "status" to "Bluetooth_off",
+        "message" to "BluetoothがOFFになっています"
+      ))
+    return
+    }
 
       //アドバタイズ設定
       val advertiseSetting = AdvertiseSettings.Builder()
@@ -194,12 +204,20 @@ class BluetoothLeController(public val activity : Activity) {
             "status" to "advertise_started",
             "message" to "アドバタイズを開始しました"
           ))
+          handler.postDelayed({
+            advertiser.stopAdvertising(mAdvertiseCallback)
+            Log.e("BLE_AD", "アドバタイズの停止")
+            onResult(mapOf(
+              "status" to "advertise_stopped",
+              "message" to "アドバタイズは正常に終了しました。"
+            ))
+          },ADVERTISE_PERIOD)
         }
         override fun onStartFailure(errorCode: Int) {
           Log.e("BLE_AD", "アドバタイズ失敗: $errorCode")
           onResult(mapOf(
             "status" to "advertise_failed",
-            "message" to "アドバタイズに失敗しました（コード: $errorCode）"
+            "message" to "通信の開始に失敗しました。もう一度お試しください。（コード: $errorCode）"
           ))
         }
       }
@@ -225,7 +243,7 @@ fun checkPermissions(context: Context, onResult: (String?) -> Unit) {
     }
 
     if (missing.isEmpty()) {
-        onResult(null) // すべて許可されている
+        onResult(null) // すべて許可されているとき
     } else {
         val message = "Missing permissions: ${missing.joinToString(", ")}"
         onResult(message)
@@ -255,13 +273,25 @@ class MainActivity : FlutterActivity() {
             bleController.scanLeDevice { resultMap ->
               when (resultMap["status"]) {
                 "scan_successful" -> {
-                  result.success(resultMap["message"])
+                    result.success(resultMap["message"])
                 }
                 "device_not_found" -> {
-                  result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
+                    result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
                 }
                 "app_error" -> {
-                  result.error("APP_ERROR", resultMap["message"], null)
+                    result.error("APP_ERROR", resultMap["message"], null)
+                }
+                "Bluetooth_off" -> {
+                    result.error("BLUETOOTH_OFF", resultMap["message"], null)
+                }
+                "no_permissions" -> {
+                    result.error("NO_PERMISSIONS", resultMap["message"], null)
+                }
+                "scan_failed" -> {
+                    result.error("SCAN_FAILED", resultMap["message"], null)
+                }
+                else -> {
+                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
                 }
               }
             }
@@ -271,13 +301,25 @@ class MainActivity : FlutterActivity() {
             bleController.startAdvertising { resultMap ->
               when (resultMap["status"]) {
                 "advertise_started" -> {
-                  result.success(resultMap["message"])
-                }
-                "not_used_ble" -> {
-                  result.error("DEVICE_NOT_BLE", resultMap["message"], null)
+                    result.success(resultMap["message"])
                 }
                 "advertise_failed" -> {
-                  result.error("FAILD_ADVERTISING", resultMap["message"], null)
+                    result.error("FAILED_ADVERTISING", resultMap["message"], null)
+                }
+                "not_use_ble" -> {
+                    result.error("DEVICE_NOT_BLE", resultMap["message"], null)
+                }
+                "no_permissions" -> {
+                    result.error("NO_PERMISSIONS", resultMap["message"], null)
+                }
+                "advertise_stopped" -> {
+                    result.success(resultMap["message"]) 
+                }
+                "Bluetooth_off" -> {
+                    result.error("BLUETOOTH_OFF", resultMap["message"], null)
+                }
+                else -> {
+                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
                 }
               }
             }
