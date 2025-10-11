@@ -31,6 +31,31 @@ import androidx.core.content.ContextCompat;
 
 import android.util.Log
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+// データ構造の「設計図」となるクラスを定義します
+@Serializable
+data class DisasterMessage(
+    // @SerialName("MD"): JSONのキー名"MD"を、Kotlinの変数名"messageContent"に対応させる
+    @SerialName("MD")
+    val messageContent: String,
+
+    @SerialName("t_p_n")
+    val toPhoneNumber: String,
+
+    @SerialName("type")
+    val messageType: String,
+
+    @SerialName("f_p_n")
+    val fromPhoneNumber: String,
+
+    // JSONキー名と変数名が同じ場合は @SerialName は省略可能ですが、明記しておくと分かりやすいです
+    @SerialName("TTL")
+    val timeToLive: Int
+)
+
 val ConnectUUID = ParcelUuid.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
 val READ_CHARACTERISTIC_UUID = ParcelUuid.fromString("a3f9c1d2-96e9-45a1-90f2-e392533ef877")
 val WRITE_CHARACTERISTIC_UUID = ParcelUuid.fromString("7e4b8a90-96e9-45a1-90f2-e392533ef877")
@@ -373,10 +398,55 @@ class MainActivity : FlutterActivity() {
               }
             }
           }
+           "runJsonTest" -> {
+                    println("--- テスト命令 'runJsonTest' を受信 ---")
+                    
+                    // 1. 仮の短縮JSONデータを準備
+                    val fakeShortenedJsonObject = """
+                        {
+                          "MD": "【訓練】これはKotlinからのテストメッセージです。",
+                          "t_p_n": "012-345-6789",
+                          "type": "9",
+                          "f_p_n": "KOTLIN-TEST-SENDER",
+                          "TTL": 1
+                        }
+                    """.trimIndent()
+                    
+                    // 2. 以前作成したJSON処理関数を呼び出す
+                    processShortenedJson(fakeShortenedJsonObject)
+                    
+                    // 3. Flutter側に「テスト完了」を報告
+                    result.success("Kotlin側でJSON処理テストが完了しました。")
+                }
           else -> result.notImplemented()
         }
     }
   }
+   private fun processShortenedJson(jsonData: String) {
+        println("▶️ データ処理を開始します...")
+        try {
+            val packet = Json.decodeFromString<DisasterMessage>(jsonData)
+
+            val message: String = packet.messageContent
+            val to_phone_number: String = packet.toPhoneNumber
+            val message_type: String = packet.messageType
+            val from_phone_number: String = packet.fromPhoneNumber
+            val TTL: Int = packet.timeToLive
+
+            println("---------------------")
+            println("📦 データを仕分けしました（正式名称）")
+            println("変数 'message' の中身: $message")
+            println("変数 'to_phone_number' の中身: $to_phone_number")
+            println("変数 'message_type' の中身: $message_type")
+            println("変数 'from_phone_number' の中身: $from_phone_number")
+            println("変数 'TTL' の中身: $TTL")
+            println("---------------------")
+
+        } catch (e: Exception) {
+            println("❌ JSONの解析中にエラーが発生しました: ${e.message}")
+        }
+        println("✅ データ処理が完了しました。")
+    }
 }
 
 
