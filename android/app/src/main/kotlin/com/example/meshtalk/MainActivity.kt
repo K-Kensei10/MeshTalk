@@ -1,7 +1,7 @@
 package com.example.meshtalk
 
 import androidx.annotation.NonNull;
-import androidx.core.os.postDelayed
+import androidx.core.os.postDelayed;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodChannel;
@@ -10,25 +10,31 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattServer;
-import android.bluetooth.le.*
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattServerCallback
-import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import java.security.Policy
-import java.util.*
-import android.os.ParcelUuid
-import android.content.Context
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
+import android.bluetooth.le.*;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattServerCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothProfile;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import java.security.Policy;
+import java.util.*;
+import android.os.ParcelUuid;
+import android.content.Context;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.content.ContextCompat;
 
 
 import android.util.Log
 
 val ConnectUUID = ParcelUuid.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
+val READ_CHARACTERISTIC_UUID = ParcelUuid.fromString("a3f9c1d2-96e9-45a1-90f2-e392533ef877")
+val WRITE_CHARACTERISTIC_UUID = ParcelUuid.fromString("7e4b8a90-96e9-45a1-90f2-e392533ef877")
+val NOTIFY_CHARACTERISTIC_UUID = ParcelUuid.fromString("1d2e3f4a-96e9-45a1-90f2-e392533ef877")
 
 //BLT class
 class BluetoothLeController(public val activity : Activity) {
@@ -41,6 +47,7 @@ class BluetoothLeController(public val activity : Activity) {
   private val adapter: BluetoothAdapter? = bluetoothManager.adapter
   private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
   private val advertiser: BluetoothLeAdvertiser? = adapter?.bluetoothLeAdvertiser
+  private var bluetoothGatt: BluetoothGatt? = null
   private val GattServer: BluetoothGattServer? = bluetoothManager.openGattServer(context,mGattServerCallback)
   var scanResults = mutableListOf<ScanResult>()
   private lateinit var mScanCallback : ScanCallback
@@ -53,7 +60,7 @@ class BluetoothLeController(public val activity : Activity) {
   private val SCAN_PERIOD: Long = 3000
   private val ADVERTISE_PERIOD: Long = 60 * 1000
 
-  //================= スキャン =================
+  //================= セントラル（メッセージ受信者） =================
   fun scanLeDevice(onResult: (Map<String, String>) -> Unit) {
     // BluetoothがOnになっているか
     if (adapter?.isEnabled != true) {
@@ -97,6 +104,12 @@ class BluetoothLeController(public val activity : Activity) {
                 "status" to "scan_successful",
                 "message" to "デバイスのスキャン完了"
               ))
+              //Gatt通信開始
+              try {
+                connect(address)
+              }catch{
+                //エラー
+              }
             }
           }
         }catch (e: Exception) {
@@ -157,7 +170,7 @@ class BluetoothLeController(public val activity : Activity) {
   }
 
 
-  //================= アドバタイズ =================
+  //================= ペリフェラル（メッセージ送信者） =================
   fun startAdvertising(onResult: (Map<String, String>) -> Unit) {
     if (advertiser == null) {
       Log.e("BLE_AD", "このデバイスはBLEアドバタイズに対応していません")
@@ -227,6 +240,31 @@ class BluetoothLeController(public val activity : Activity) {
     advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
   }
   //================= GATT通信 =================
+  //TODOTODOTODOTODO
+  private fun connect(address: String) {
+    val device: BluetoothDevice? = adapter?.getRemoteDevice(address)
+    Log.d("Gatt","デバイスと通信開始")
+    bluetoothGatt = device?.connectGatt(context, false, bluetoothGattCallback)
+  }
+  
+  //Gatt接続、コールバック
+  private val bluetoothGattCallback = object : BluetoothGattCallback() {
+
+    //ペリフェラルとの接続状態が変化したとき
+    override fun onConnectionStateChange(gatt: BluetoothGatt,status: Int, newState: Int) {
+      if (newState == BluetoothProfile.STATE_CONNECTED) {
+        Log.d("Gatt","接続成功")
+        bluetoothGatt?.discoverServices()
+      }
+    }
+
+    //サービスが検出されたとき
+    override fun onServicesDiscovered(gatt: BluetoothGatt,status: Int) {
+      super.onServicesDiscovered(gatt, status)
+      Log.d("Gatt","サービス検出 gatt: $gatt, status: $status")
+      //対象のサービスの取得
+    }
+  }
   
 }
 
