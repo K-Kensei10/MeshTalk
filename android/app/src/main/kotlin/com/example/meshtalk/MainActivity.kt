@@ -107,8 +107,11 @@ class BluetoothLeController(public val activity : Activity) {
               //Gatt通信開始
               try {
                 connect(address)
-              }catch{
-                //エラー
+              }catch(e: Exception){
+                onResult(mapOf(
+                  "status" to "Gatt_start_failed",
+                  "message" to "通信を正しく開始することができませんでした: ${e.message}"
+              ))
               }
             }
           }
@@ -302,6 +305,7 @@ class MainActivity : FlutterActivity() {
       call, result ->
         when (call.method) {
           "sendMessage" -> {
+            //["message", "to_phone_number", "message_type", "from_phone_number", "TTL"]に変える
             val message = call.argument<String>("message") ?: ""
             val phoneNum = call.argument<String>("phoneNum") ?: ""
             val messageType = call.argument<String>("messageType") ?: ""
@@ -331,6 +335,9 @@ class MainActivity : FlutterActivity() {
                 }
                 "scan_failed" -> {
                     result.error("SCAN_FAILED", resultMap["message"], null)
+                }
+                "Gatt_start_failed" -> {
+                    result.error("GATT_START_FAILED", resultMap["message"], null)
                 }
                 else -> {
                     result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
