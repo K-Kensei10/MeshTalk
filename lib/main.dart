@@ -13,12 +13,36 @@ void main() {
 
 // アプリ全体で共有するデータ（シンプルな状態管理として利用）
 class AppData {
-  // 自治体からのお知らせ
   static List<Map<String, String>> officialAnnouncements = [];
-  // 避難者から自治体へのメッセージ
   static List<Map<String, String>> receivedMessages = [];
-  // 避難所SNSの投稿
   static List<Map<String, dynamic>> snsPosts = [];
+
+  // BLE受信データを処理して振り分ける
+  static void addReceivedData(Map<String, dynamic> data) {
+    final type = data['type'];
+    final text = data['text'];
+    final phone = data['phone'];
+
+    final time = "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
+
+    if (type == 'sns') {
+      snsPosts.insert(0, {
+        'text': text,
+        'timestamp': DateTime.now(),
+      });
+    } else if (type == 'safety') {
+      receivedMessages.insert(0, {
+        'subject': '安否確認',
+        'detail': '電話番号$phoneさんから「$text」が届きました',
+        'time': time,
+      });
+    } else if (type == 'government') {
+      officialAnnouncements.insert(0, {
+        'text': text,
+        'time': time,
+      });
+    }
+  }
 }
 
 //テーマ調整
