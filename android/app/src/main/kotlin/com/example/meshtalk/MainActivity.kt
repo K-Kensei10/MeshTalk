@@ -35,10 +35,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-// データ構造の「設計図」となるクラスを定義します
 @Serializable
 data class DisasterMessage(
-    // @SerialName("MD"): JSONのキー名"MD"を、Kotlinの変数名"messageContent"に対応させる
     @SerialName("MD")
     val messageContent: String,
 
@@ -51,7 +49,6 @@ data class DisasterMessage(
     @SerialName("f_p_n")
     val fromPhoneNumber: String,
 
-    // JSONキー名と変数名が同じ場合は @SerialName は省略可能ですが、明記しておくと分かりやすいです
     @SerialName("TTL")
     val timeToLive: Int
 )
