@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:meshtalk/main.dart';
+import 'package:anslin/main.dart';
 
 class HostAuthPageState extends State<HostAuthPage> {
   final TextEditingController _passwordController = TextEditingController();

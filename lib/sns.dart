@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:meshtalk/main.dart';
+import 'package:anslin/main.dart';
 
 class ShelterSNSPageState extends State<ShelterSNSPage> {
   final TextEditingController _postController = TextEditingController();

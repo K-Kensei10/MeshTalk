@@ -1,4 +1,4 @@
-package com.example.meshtalk
+package com.example.anslin
 
 import android.Manifest
 import android.app.Activity
@@ -15,6 +15,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Log
 import androidx.annotation.NonNull
 import androidx.core.content.ContextCompat
@@ -122,7 +123,8 @@ class BluetoothLeController(public val activity: Activity) {
               ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build()
 
       val scanFilterList = arrayListOf<ScanFilter>()
-      val scanUuidFilter: ScanFilter = ScanFilter.Builder().setServiceUuid(CONNECT_UUID).build()
+      val scanUuidFilter: ScanFilter =
+              ScanFilter.Builder().setServiceUuid(ParcelUuid(CONNECT_UUID)).build()
       scanFilterList.add(scanUuidFilter)
 
       // コールバック
@@ -135,7 +137,7 @@ class BluetoothLeController(public val activity: Activity) {
                                   scanResults.none { it.device.address == result.device.address }
                   ) {
                     val uuids = result.scanRecord?.serviceUuids
-                    if (uuids?.contains(CONNECT_UUID) == true) {
+                    if (uuids?.contains(ParcelUuid(CONNECT_UUID)) == true) {
                       Log.d("BLE", "$result")
                     }
                     scanResults.add(result)
@@ -193,7 +195,10 @@ class BluetoothLeController(public val activity: Activity) {
                     .build()
 
     val advertiseData =
-            AdvertiseData.Builder().setIncludeDeviceName(true).addServiceUuid(CONNECT_UUID).build()
+            AdvertiseData.Builder()
+                    .setIncludeDeviceName(true)
+                    .addServiceUuid(ParcelUuid(CONNECT_UUID))
+                    .build()
 
     // コールバック
     mAdvertiseCallback =

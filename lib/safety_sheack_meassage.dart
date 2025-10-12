@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:meshtalk/main.dart';
+import 'package:anslin/main.dart';
 import 'package:flutter/services.dart';
 
 class SafetyCheckPageState extends State<SafetyCheckPage> {
   final TextEditingController _recipientController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
-  static const methodChannel = MethodChannel('meshtalk.flutter.dev/contact');
+  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
   int _charCount = 0;
 
   @override
@@ -27,15 +27,13 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
 
   void _advertising() async {
     try {
-      await methodChannel.invokeMethod<String>('startAdvertising', {
-      });
+      await methodChannel.invokeMethod<String>('startAdvertising', {});
     } on PlatformException catch (e) {
       debugPrint("$e");
     }
   }
 
   void _sendMessage() {
-    
     if (_recipientController.text.isNotEmpty &&
         _messageController.text.isNotEmpty) {
       // 実際はBluetooth経由でメッセージを送信
