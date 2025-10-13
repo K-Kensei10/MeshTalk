@@ -6,23 +6,23 @@ import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart'; // MethodChannel用
 
 void main() {
   runApp(const MyApp());
 }
 
-// アプリ全体で共有するデータ（シンプルな状態管理として利用）
+// ================= グローバル状態管理 =================
 class AppData {
   static List<Map<String, String>> officialAnnouncements = [];
   static List<Map<String, String>> receivedMessages = [];
   static List<Map<String, dynamic>> snsPosts = [];
 
-  // BLE受信データを処理して振り分ける
+  // Kotlinから受け取ったメッセージをtypeごとに振り分ける関数
   static void addReceivedData(Map<String, dynamic> data) {
     final type = data['type'];
-    final text = data['text'];
-    final phone = data['phone'];
-
+    final text = data['message'];
+    final phone = data['from'] ?? "不明";
     final time = "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
 
     if (type == 'sns') {
@@ -45,7 +45,7 @@ class AppData {
   }
 }
 
-//テーマ調整
+// ================= アプリテーマ =================
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -58,12 +58,12 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Noto Sans JP',
         useMaterial3: true,
       ),
-      home: PhoneInputPage(),
+      home: const PhoneInputPage(),
     );
   }
 }
 
-//メインページ
+// ================= メインページ（タブ切替） =================
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
@@ -86,11 +86,27 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
+  // ← 追加：Kotlinからのメッセージを受け取るためのMethodChannel設定
+  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
+
+  void initPlatformListener() {
+    methodChannel.setMethodCallHandler((call) async {
+      if (call.method == "displayMessage") {
+        final data = Map<String, dynamic>.from(call.arguments);
+        AppData.addReceivedData(data); // ← 受信データを振り分けて保存
+        setState(() {}); // ← 表示更新（必要に応じて）
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
 
-    // 描画が終わったあとにダイアログを表示
+    // ← 追加：Kotlinとの連携を初期化
+    initPlatformListener();
+
+    // 権限確認（元の処理）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkAndRequestPermissions();
     });
@@ -116,7 +132,7 @@ class _MainPageState extends State<MainPage> {
   }
 }
 
-//権限要求
+// ================= 権限要求 =================
 void checkAndRequestPermissions() async {
   final permissions = [
     Permission.bluetooth,
@@ -139,8 +155,6 @@ void checkAndRequestPermissions() async {
 // ================= 電話番号入力画面 =================
 class PhoneInputPage extends StatefulWidget {
   const PhoneInputPage({super.key});
-
-  //lib\phone_number_request.dart
   @override
   State<PhoneInputPage> createState() => PhoneInputPageState();
 }
@@ -148,7 +162,6 @@ class PhoneInputPage extends StatefulWidget {
 // ================= タブ1：自治体連絡 =================
 class LocalGovernmentPage extends StatefulWidget {
   const LocalGovernmentPage({super.key});
-
   @override
   State<LocalGovernmentPage> createState() => LocalGovernmentPageState();
 }
@@ -156,7 +169,6 @@ class LocalGovernmentPage extends StatefulWidget {
 // ================= タブ2：安否確認 =================
 class SafetyCheckPage extends StatefulWidget {
   const SafetyCheckPage({super.key});
-
   @override
   State<SafetyCheckPage> createState() => SafetyCheckPageState();
 }
@@ -164,7 +176,6 @@ class SafetyCheckPage extends StatefulWidget {
 // ================= タブ3：避難所SNS =================
 class ShelterSNSPage extends StatefulWidget {
   const ShelterSNSPage({super.key});
-
   @override
   State<ShelterSNSPage> createState() => ShelterSNSPageState();
 }
@@ -172,7 +183,6 @@ class ShelterSNSPage extends StatefulWidget {
 // ================= ホストモード認証ページ =================
 class HostAuthPage extends StatefulWidget {
   const HostAuthPage({super.key});
-
   @override
   State<HostAuthPage> createState() => HostAuthPageState();
 }
@@ -180,7 +190,6 @@ class HostAuthPage extends StatefulWidget {
 // ================= ホストモード（自治体）ページ =================
 class GovernmentHostPage extends StatefulWidget {
   const GovernmentHostPage({super.key});
-
   @override
   State<GovernmentHostPage> createState() => GovernmentHostPageState();
 }
