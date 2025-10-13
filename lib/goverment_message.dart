@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:meshtalk/main.dart';
+import 'package:anslin/main.dart';
 import 'package:flutter/services.dart';
 
 class LocalGovernmentPageState extends State<LocalGovernmentPage> {
-  static const methodChannel = MethodChannel('meshtalk.flutter.dev/contact');
+  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
 
   void _sendMessage(String message, String phoneNum, String messageType, String targetPhoneNum) async {
     try {

@@ -1,4 +1,4 @@
-package com.example.meshtalk
+package com.example.anslin
 
 import androidx.annotation.NonNull;
 import androidx.core.os.postDelayed;
@@ -16,10 +16,12 @@ import android.bluetooth.le.*;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothProfile;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Parcelable;
 import java.security.Policy;
 import java.util.*;
 import android.os.ParcelUuid;
@@ -65,22 +67,17 @@ class BluetoothLeController(public val activity : Activity) {
     private var notifyCharacteristic: BluetoothGattCharacteristic? = null
 
   //================= セントラル（メッセージ受信者） =================
-  fun scanLeDevice(onResult: (Map<String, String>) -> Unit) {
-    // BluetoothがOnになっているか
-    if (adapter?.isEnabled != true) {
-      onResult(mapOf(
-        "status" to "Bluetooth_off",
-        "message" to "Bluetoothがオフになっています。設定からオンにしてください。"
-      ))
-      return
-    }
+  fun startScanAndConnect(onResult: (Map<String, String>) -> Unit) {
     //権限チェック
-    checkPermissions(context) { permissionResult ->
-      if (permissionResult != null) {
-        onResult(mapOf(
-        "status" to "no_permissions",
-        "message" to "通信に必要な権限がありません。設定から許可してください。"
-      ))
+    checkPermissions(context) { result ->
+      if (result != null) {
+        Log.d("BLE", "通信に必要な権限がありません。設定から許可してください。")
+        return@checkPermissions // ← このラムダだけ抜ける = この関数だけ実行しない
+      }
+      // BluetoothがOnになっているか
+      if (adapter?.isEnabled != true) {
+        Log.d("BLE", "BluetoothがOFFになっています。設定からONにしてください。")
+      return@checkPermissions
       }
     }
     //スキャン結果リセット
@@ -94,8 +91,8 @@ class BluetoothLeController(public val activity : Activity) {
           if (scanResults.isEmpty()) {
             Log.d("BLE", "検出されたデバイスはありません")
             onResult(mapOf(
-              "status" to "device_not_found",
-              "message" to "通信相手が見つかりませんでした。近くにあるか確認してください。"
+              "status" to "DEVICE_NOT_FOUND",
+              "message" to "BluetoothがOFFになっています"
             ))
           }else {
             for (result in scanResults) {
@@ -104,10 +101,6 @@ class BluetoothLeController(public val activity : Activity) {
               val address = result.device.address
               val rssi = result.rssi
               Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi, UUID: $uuids")
-              onResult(mapOf(
-                "status" to "scan_successful",
-                "message" to "デバイスのスキャン完了"
-              ))
               //Gatt通信開始
               try {
                 connect(address)
@@ -149,97 +142,104 @@ class BluetoothLeController(public val activity : Activity) {
         override fun onScanFailed(errorCode: Int) {
           super.onScanFailed(errorCode)
           Log.d("BLE","スキャンに失敗しました（コード: $errorCode）")
-          onResult(mapOf(
-            "status" to "scan_failed",
-            "message" to "通信の準備に失敗しました。もう一度お試しください。（コード: $errorCode）"
-          ))
         }
       }
       if (!isScanning || scanner == null) {
-        onResult(mapOf(
-          "status" to "app_error",
-          "message" to "通信中に予期せぬエラーが発生しました。アプリを再起動してください。"
-        ))
+        Log.d("BLE","通信中に予期せぬエラーが発生しました。アプリを再起動してください。")
         return
       }
       scanner.stopScan(mScanCallback)
       scanner.startScan(scanFilterList,scanSettings,mScanCallback)
     }else{
       Log.d("BLE","スキャンは既に実行されています")
-      onResult(mapOf(
-        "status" to "scan_failed",
-        "message" to "スキャンは既に実行されています"
-      ))
     }
   }
 
 
   //================= ペリフェラル（メッセージ送信者） =================
-  fun startAdvertising(onResult: (Map<String, String>) -> Unit) {
+  fun SendingMessage(onResult: (Map<String, String>) -> Unit) {
+    //権限チェック
     if (advertiser == null) {
       Log.e("BLE_AD", "このデバイスはBLEアドバタイズに対応していません")
-      onResult(mapOf(
-        "status" to "not_use_ble",
-        "message" to "この端末はBLE通信に対応していません。"
-      ))
       return
     }
-
     checkPermissions(context) { result ->
       if (result != null) {
-        onResult(mapOf(
-          "status" to "no_permissions",
-          "message" to "権限が不足しています"
-        ))
-        return@checkPermissions // ← このラムダだけ抜ける = この関数だけ実行しない
+        Log.d("BLE","通信に必要な権限がありません。設定から許可してください。")
+        return@checkPermissions
       }
       // BluetoothがOnになっているか
       if (adapter?.isEnabled != true) {
-        onResult(mapOf(
-          "status" to "Bluetooth_off",
-          "message" to "BluetoothがOFFになっています"
-        ))
+        Log.d("BLE","BluetoothがOFFになっています。設定からONにしてください。")
       return@checkPermissions
       }
-    }
 
-    //アドバタイズ設定
-    val advertiseSetting = AdvertiseSettings.Builder()
-        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
-        .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
-        .setConnectable(true)
-        .build()
+      //セントラル側が切断した後の処理
+      val mGattServerCallback = object : BluetoothGattServerCallback() {
+      override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
+        if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+          Log.d("GATT", "セントラルが切断しました")
+          //変数初期化
+          readCharacteristic = null
+          writeCharacteristic = null
+          notifyCharacteristic = null
+          }
+        }
+      }
+      
+      //Gatt通信用
+      var mBluetoothGattServer = bluetoothManager.openGattServer(context, mGattServerCallback)
+      //Gattサービスの取得
+      var BluetoothGattService = BluetoothGattService(CONNECT_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
-    val advertiseData = AdvertiseData.Builder()
-        .setIncludeDeviceName(true)
-        .addServiceUuid(ParcelUuid(CONNECT_UUID))
-        .build()
+      //キャラクタリスティック
+      BluetoothGattService.addCharacteristic(BluetoothGattCharacteristic(WRITE_CHARACTERISTIC_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE));
+      BluetoothGattService.addCharacteristic(BluetoothGattCharacteristic(READ_CHARACTERISTIC_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ));
+      val notifyCharacteristic = BluetoothGattCharacteristic(NOTIFY_CHARACTERISTIC_UUID,BluetoothGattCharacteristic.PROPERTY_NOTIFY,BluetoothGattCharacteristic.PERMISSION_READ)
+      val descriptor = BluetoothGattDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"),BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE)
 
-    //コールバック
-    mAdvertiseCallback = object : AdvertiseCallback() {
-      override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-        handler.postDelayed({
-          advertiser.stopAdvertising(mAdvertiseCallback)
-          Log.e("BLE_AD", "アドバタイズの停止")
+      //Gattキャラクタリスティックの追加
+      notifyCharacteristic.addDescriptor(descriptor)
+      BluetoothGattService.addCharacteristic(notifyCharacteristic)
+      mBluetoothGattServer.addService(BluetoothGattService)
+
+      //アドバタイズ設定
+      val advertiseSetting = AdvertiseSettings.Builder()
+          .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+          .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+          .setConnectable(true)
+          .build()
+
+      val advertiseData = AdvertiseData.Builder()
+          .setIncludeDeviceName(true)
+          .addServiceUuid(ParcelUuid(CONNECT_UUID))
+          .build()
+
+      //コールバック
+      mAdvertiseCallback = object : AdvertiseCallback() {
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+          handler.postDelayed({
+            advertiser.stopAdvertising(mAdvertiseCallback)
+            Log.e("BLE_AD", "アドバタイズの停止")
+            onResult(mapOf(
+              "status" to "advertise_stopped",
+              "message" to "アドバタイズは正常に終了しました。"
+            ))
+          },ADVERTISE_PERIOD)
+        }
+        override fun onStartFailure(errorCode: Int) {
+          Log.e("BLE_AD", "アドバタイズ失敗: $errorCode")
           onResult(mapOf(
-            "status" to "advertise_stopped",
-            "message" to "アドバタイズは正常に終了しました。"
+            "status" to "advertise_failed",
+            "message" to "通信の開始に失敗しました。もう一度お試しください。（コード: $errorCode）"
           ))
-        },ADVERTISE_PERIOD)
+        }
       }
-      override fun onStartFailure(errorCode: Int) {
-        Log.e("BLE_AD", "アドバタイズ失敗: $errorCode")
-        onResult(mapOf(
-          "status" to "advertise_failed",
-          "message" to "通信の開始に失敗しました。もう一度お試しください。（コード: $errorCode）"
-        ))
-      }
+      advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
     }
-    advertiser.stopAdvertising(mAdvertiseCallback)
-    advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
   }
+
   //================= GATT通信 =================
-  //TODOTODOTODOTODO
   private fun connect(address: String) {
     val device: BluetoothDevice? = adapter?.getRemoteDevice(address)
     Log.d("Gatt","デバイスと通信開始")
@@ -282,7 +282,6 @@ class BluetoothLeController(public val activity : Activity) {
       }
     }
   }
-  
 }
 
 
@@ -311,7 +310,7 @@ fun checkPermissions(context: Context, onResult: (String?) -> Unit) {
 
 
 class MainActivity : FlutterActivity() {
-  private val CHANNEL = "meshtalk.flutter.dev/contact"
+  private val CHANNEL = "anslin.flutter.dev/contact"
 
   override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
@@ -330,25 +329,13 @@ class MainActivity : FlutterActivity() {
             val disaster_message_data = messageType + separator + phoneNum +separator + targetPhoneNum + separator + TTL + separator + message
             Log.d("MainActivity", disaster_message_data)
             val bleController = BluetoothLeController(this)
-            bleController.scanLeDevice { resultMap ->
+            bleController.startScanAndConnect { resultMap ->
               when (resultMap["status"]) {
                 "scan_successful" -> {
-                    result.error("SCAN_SUCCESSFUL", resultMap["message"], null)
+                    result.success(resultMap["message"])
                 }
                 "device_not_found" -> {
                     result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
-                }
-                "app_error" -> {
-                    result.error("APP_ERROR", resultMap["message"], null)
-                }
-                "Bluetooth_off" -> {
-                    result.error("BLUETOOTH_OFF", resultMap["message"], null)
-                }
-                "no_permissions" -> {
-                    result.error("NO_PERMISSIONS", resultMap["message"], null)
-                }
-                "scan_failed" -> {
-                    result.error("SCAN_FAILED", resultMap["message"], null)
                 }
                 else -> {
                     result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
@@ -358,22 +345,13 @@ class MainActivity : FlutterActivity() {
           }
           "startAdvertising" -> {
             val bleController = BluetoothLeController(this)
-            bleController.startAdvertising { resultMap ->
+            bleController.SendingMessage { resultMap ->
               when (resultMap["status"]) {
                 "advertise_failed" -> {
                     result.error("FAILED_ADVERTISING", resultMap["message"], null)
                 }
-                "not_use_ble" -> {
-                    result.error("DEVICE_NOT_BLE", resultMap["message"], null)
-                }
-                "no_permissions" -> {
-                    result.error("NO_PERMISSIONS", resultMap["message"], null)
-                }
                 "advertise_stopped" -> {
                     result.success(resultMap["message"]) 
-                }
-                "Bluetooth_off" -> {
-                    result.error("BLUETOOTH_OFF", resultMap["message"], null)
                 }
                 else -> {
                     result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
@@ -386,6 +364,3 @@ class MainActivity : FlutterActivity() {
     }
   }
 }
-
-
-
