@@ -102,10 +102,10 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
       ),
     );
   }
-   void _runJsonTest() async {
+   void _runJsonTest() async {   
+      const String testJson = '{"MD":"これはFlutterからのテストメッセージです","t_p_n":"全員宛","type":"1","f_p_n":"FlutterUI","TTL":5}';
     try {
-      // Kotlin側の 'runJsonTest' という名前の処理を呼び出す
-      final String result = await methodChannel.invokeMethod('runJsonTest');
+ final dynamic result = await methodChannel.invokeMethod('routeToMessageBridge', {'data': testJson});
       debugPrint('Flutter側で受け取った結果: $result');
 
       // 画面下部に成功メッセージを表示
