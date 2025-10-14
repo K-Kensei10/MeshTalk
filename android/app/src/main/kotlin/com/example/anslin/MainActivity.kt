@@ -183,6 +183,8 @@ class BluetoothLeController(public val activity : Activity) {
           readCharacteristic = null
           writeCharacteristic = null
           notifyCharacteristic = null
+          }else if(newState == BluetoothProfile.STATE_CONNECTED) {
+            Log.d("GATT", "セントラルと交信しています")
           }
         }
       }
@@ -240,10 +242,21 @@ class BluetoothLeController(public val activity : Activity) {
   }
 
   //================= GATT通信 =================
-  private fun connect(address: String) {
-    val device: BluetoothDevice? = adapter?.getRemoteDevice(address)
-    Log.d("Gatt","デバイスと通信開始")
-    bluetoothGatt = device?.connectGatt(context, false, bluetoothGattCallback)
+  private fun connect(address: String): Boolean {
+    adapter?.let { adapter ->
+      try {
+        val device: BluetoothDevice? = adapter.getRemoteDevice(address)
+        // connect to the GATT server on the device
+        bluetoothGatt = device?.connectGatt(context, false, bluetoothGattCallback)
+        return true
+      } catch (exception: IllegalArgumentException) {
+        Log.d("GATT", "デバイスが見つかりませんでした。")
+        return false
+      }
+    } ?: run {
+      Log.d("GATT", "Bluetoothが使用できません。")
+      return false
+    }
   }
   
   //Gatt接続、コールバック
@@ -268,7 +281,7 @@ class BluetoothLeController(public val activity : Activity) {
         Log.e("GATT", "指定されたサービスが見つかりません: $CONNECT_UUID")
         return
       }
-      readCharacteristic = service.getCharacteristic(READ_CHARACTERISTIC_UUID)
+      readCharacteristic = service.getCharacteristic(READ_CHARACTERISTIC_UUID)//TODOここら辺の例外処理
       if (readCharacteristic != null) {
         Log.d("GATT", "Read Characteristic取得成功")
       }
@@ -279,7 +292,11 @@ class BluetoothLeController(public val activity : Activity) {
       notifyCharacteristic = service.getCharacteristic(NOTIFY_CHARACTERISTIC_UUID)
       if (notifyCharacteristic != null) {
         Log.d("GATT", "Notify Characteristic取得成功")
+        
       }
+    }
+    fun getSupportedGattServices(): List<BluetoothGattService?>? {
+      return bluetoothGatt?.services
     }
   }
 }
