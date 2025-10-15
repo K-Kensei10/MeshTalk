@@ -25,18 +25,18 @@ class AppData {
     final phone = data['from'] ?? "不明";
     final time = "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
 
-    if (type == 'sns') {
+    if (type == 1) {
       snsPosts.insert(0, {
         'text': text,
         'timestamp': DateTime.now(),
       });
-    } else if (type == 'safety') {
+    } else if (type == 2) {
       receivedMessages.insert(0, {
         'subject': '安否確認',
         'detail': '電話番号$phoneさんから「$text」が届きました',
         'time': time,
       });
-    } else if (type == 'government') {
+    } else if (type == 3) {
       officialAnnouncements.insert(0, {
         'text': text,
         'time': time,

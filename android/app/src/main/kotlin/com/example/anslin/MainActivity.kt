@@ -1,4 +1,4 @@
-package com.example.meshtalk
+package com.example.anslin
 
 import androidx.annotation.NonNull;
 import androidx.core.os.postDelayed;
@@ -354,7 +354,7 @@ fun checkPermissions(context: Context, onResult: (String?) -> Unit) {
 
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "meshtalk.flutter.dev/contact"
+    private val CHANNEL = "anslin.flutter.dev/contact"
     private lateinit var channel: MethodChannel
     //FlutterとKotlin間の通信チャネルを設定
 
@@ -533,11 +533,11 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun displayMessageOnFlutter(packet: DisasterMessage) {
+        println("Flutterにメッセージ表示を依頼します...")
         val dataForFlutter = mapOf(
             "type" to packet.messageType,
             "message" to packet.messageContent,
             "from" to packet.fromPhoneNumber
-            // 他にUI表示で必要なデータがあれば追加
         )
         runOnUiThread {
             channel.invokeMethod("displayMessage", dataForFlutter)
