@@ -83,51 +83,9 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(onPressed: _sendMessage, child: const Text("送信")),
-              const SizedBox(height: 10), // ボタンの間に少し隙間を空ける
-
-            ElevatedButton(
-              // Kotlinの'runJsonTest'を呼び出す関数
-              onPressed: _runJsonTest, 
-              // 通常の送信ボタンと区別できるように色を変える
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange, 
-              ),
-              child: const Text(
-                'Kotlin JSON処理テスト実行',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
           ],
         ),
       ),
     );
-  }
-   void _runJsonTest() async {
-    try {
-      // Kotlin側の 'runJsonTest' という名前の処理を呼び出す
-      final String result = await methodChannel.invokeMethod('runJsonTest');
-      debugPrint('Flutter側で受け取った結果: $result');
-
-      // 画面下部に成功メッセージを表示
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result),
-            backgroundColor: Colors.green, // 成功は緑色
-          ),
-        );
-      }
-    } on PlatformException catch (e) {
-      debugPrint('テスト呼び出し中にエラー: $e');
-      // 画面下部にエラーメッセージを表示
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('テストエラー: ${e.message}'),
-            backgroundColor: Colors.red, // エラーは赤色
-          ),
-        );
-      }
-    }
   }
 }
