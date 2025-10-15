@@ -84,6 +84,30 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
               onPressed: _sendMessage,
               child: const Text("送信"),
             ),
+                         const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange, // ボタンの色をオレンジに
+              ),
+              child: const Text(
+                'Kotlin JSON処理テスト実行',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () async {
+                // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
+                try {
+                  const String testJson = '{"MD":"Flutterからのテスト","t_p_n":"090-9999-9999","type":"1","f_p_n":"080-1111-2222","TTL":3}';
+                  final result = await methodChannel.invokeMethod('routeToMessageBridge', {'data': testJson});
+                  // 画面下にメッセージを表示
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(result)),
+                  );
+                } catch (e) {
+                  print('テスト呼び出し中にエラー: $e');
+                }
+              },
+            ),
           ],
         );
       },
