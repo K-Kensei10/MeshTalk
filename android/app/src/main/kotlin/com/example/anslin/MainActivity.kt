@@ -54,6 +54,7 @@ class BluetoothLeController(public val activity : Activity) {
   private lateinit var mScanCallback : ScanCallback
   private lateinit var mAdvertiseCallback : AdvertiseCallback
   private lateinit var mGattServerCallback : BluetoothGattServerCallback
+  private lateinit var mBluetoothGattServer: BluetoothGattServer
   init {adapter?.name = "AL"}
 
 
@@ -103,6 +104,9 @@ class BluetoothLeController(public val activity : Activity) {
               Log.d("BLE", "デバイス名: $name, アドレス: $address, RSSI: $rssi, UUID: $uuids")
               //Gatt通信開始
               try {
+                bluetoothGatt?.disconnect()
+                bluetoothGatt?.close()
+                bluetoothGatt = null
                 connect(address)
               }catch(e: Exception){
                 Log.d("Gatt", "通信を正しく開始することができませんでした: ${e.message}")
@@ -187,22 +191,39 @@ class BluetoothLeController(public val activity : Activity) {
             Log.d("GATT", "セントラルと交信しています")
           }
         }
+        override fun onCharacteristicReadRequest(
+          device: BluetoothDevice,
+          requestId: Int,
+          offset: Int,
+          characteristic: BluetoothGattCharacteristic
+        ) {
+          val value = characteristic.value ?: byteArrayOf()
+          val responseValue = if (offset < value.size) value.copyOfRange(offset, value.size) else byteArrayOf()
+          mBluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, responseValue) 
+        }
       }
       
+      
       //Gatt通信用
-      var mBluetoothGattServer = bluetoothManager.openGattServer(context, mGattServerCallback)
+      mBluetoothGattServer = bluetoothManager.openGattServer(context, mGattServerCallback)
       //Gattサービスの取得
       var BluetoothGattService = BluetoothGattService(CONNECT_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
       //キャラクタリスティック
       BluetoothGattService.addCharacteristic(BluetoothGattCharacteristic(WRITE_CHARACTERISTIC_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE));
-      BluetoothGattService.addCharacteristic(BluetoothGattCharacteristic(READ_CHARACTERISTIC_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ));
-      val notifyCharacteristic = BluetoothGattCharacteristic(NOTIFY_CHARACTERISTIC_UUID,BluetoothGattCharacteristic.PROPERTY_NOTIFY,BluetoothGattCharacteristic.PERMISSION_READ)
-      val descriptor = BluetoothGattDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"),BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE)
+      readCharacteristic = BluetoothGattCharacteristic(READ_CHARACTERISTIC_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+
+      //メッセージデータの書き込み
+      val message = "[message, to_phone_number, message_type, from_phone_number, TTL]"
+      readCharacteristic?.let { readChar ->
+        readChar.value = message.toByteArray(Charsets.UTF_8)
+      }
+      
+      // サービスに追加
+      BluetoothGattService.addCharacteristic(readCharacteristic)
+
 
       //Gattキャラクタリスティックの追加
-      notifyCharacteristic.addDescriptor(descriptor)
-      BluetoothGattService.addCharacteristic(notifyCharacteristic)
       mBluetoothGattServer.addService(BluetoothGattService)
 
       //アドバタイズ設定
@@ -237,7 +258,9 @@ class BluetoothLeController(public val activity : Activity) {
           ))
         }
       }
-      advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
+      handler.postDelayed({
+        advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
+      }, 500)
     }
   }
 
@@ -268,6 +291,9 @@ class BluetoothLeController(public val activity : Activity) {
         Log.d("Gatt","接続成功")
         //gatt通信量のサイズ変更
         gatt.requestMtu(512)
+        handler.postDelayed({
+          gatt.discoverServices()
+        }, 300)
       }
     }
 
@@ -292,21 +318,16 @@ class BluetoothLeController(public val activity : Activity) {
         Log.e("GATT", "指定されたサービスが見つかりません: $CONNECT_UUID")
         return
       }
-      readCharacteristic = service.getCharacteristic(READ_CHARACTERISTIC_UUID)//TODOここら辺の例外処理
+      readCharacteristic = service.getCharacteristic(READ_CHARACTERISTIC_UUID)
       if (readCharacteristic != null) {
         Log.d("GATT", "Read Characteristic取得成功")
-        val readChar = bluetoothGatt?.getService(CONNECT_UUID)?.getCharacteristic(READ_CHARACTERISTIC_UUID)
-        bluetoothGatt?.readCharacteristic(readChar)
-
+        Handler(Looper.getMainLooper()).postDelayed({
+            bluetoothGatt?.readCharacteristic(readCharacteristic)
+        }, 300)
       }
       writeCharacteristic = service.getCharacteristic(WRITE_CHARACTERISTIC_UUID)
       if (writeCharacteristic != null) {
         Log.d("GATT", "Write Characteristic取得成功")
-      }
-      notifyCharacteristic = service.getCharacteristic(NOTIFY_CHARACTERISTIC_UUID)
-      if (notifyCharacteristic != null) {
-        Log.d("GATT", "Notify Characteristic取得成功")
-        
       }
     }
 
@@ -326,6 +347,8 @@ class BluetoothLeController(public val activity : Activity) {
         bluetoothGatt = null
       } else {
         Log.e("BLE_READ", "読み取り失敗 status: $status")
+        bluetoothGatt?.disconnect()
+        bluetoothGatt?.close()
       }
     }
 
