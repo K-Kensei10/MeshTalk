@@ -53,11 +53,9 @@ object MessageBridge {
     }
 
     fun registerActivityHandler(handler: (jsonData: String) -> Unit) {
-        Log.d("MessageBridge", "🟢 担当者（UI）が出社し、連絡先を登録しました。")
         activityHandler = handler
 
         if (messageQueue.isNotEmpty()) {
-            Log.d("MessageBridge", "📬 待合室に溜まっていた ${messageQueue.size} 件のメッセージを処理します。")
 
             messageQueue.forEach { jsonData ->
                 handler(jsonData)
@@ -362,12 +360,9 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        println("✅✅✅ UI担当の兄です！今から電話機を設置します！ ✅✅✅")
 
-        // 修正: channelをここで初期化
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 
-        // 修正: 構造を整理
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "sendMessage" -> {
@@ -439,27 +434,7 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                 }
-                "runJsonTest" -> {
-                    println("--- テスト命令 'runJsonTest' を受信 ---")
 
-                    // 1. 仮の短縮JSONデータを準備
-                    val fakeShortenedJsonObject = """
-                                {
-                                  "MD": "【訓練】これはKotlinからのテストメッセージです。",
-                                  "t_p_n": "012-345-6789",
-                                  "type": "1",
-                                  "f_p_n": "KOTLIN-TEST-SENDER",
-                                  "TTL": 1
-                                }
-                            """.trimIndent()
-
-                    // 2. 以前作成したJSON処理関数を呼び出す
-                    message_separate_Json(fakeShortenedJsonObject)
-
-                    // 3. Flutter側に「テスト完了」を報告
-                    result.success("Kotlin側でJSON処理テストが完了しました。")
-                }
-                // 修正: routeToMessageBridgeをwhenブロック内に正しく配置
                 "routeToMessageBridge" -> {
                     val data = call.argument<String>("data")
                     if (data != null) {
@@ -473,14 +448,13 @@ class MainActivity : FlutterActivity() {
             }
         }
         MessageBridge.registerActivityHandler { jsonData ->
-            // メッセージを受け取ったら、UIスレッドで安全に処理を実行する
             runOnUiThread {
                 message_separate_Json(jsonData)
             }
         }
-    } // 修正: configureFlutterEngineはここで閉じます
+    }
 
-    // 修正: これ以降の関数はconfigureFlutterEngineの外に配置します
+    //================= メッセージ処理 =================
     private fun message_separate_Json(jsonData: String) {
         println("▶️ データ処理を開始します...")
         try {
@@ -494,7 +468,7 @@ class MainActivity : FlutterActivity() {
 
             val MY_PHONE_NUMBER = "01234567890" // 例として固定値を使用
 
-            println("📦 [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL")
+            println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL")
 
             when (message_type) {
                 "1" -> {// SNS
@@ -566,7 +540,6 @@ class MainActivity : FlutterActivity() {
             // 他にUI表示で必要なデータがあれば追加
         )
         runOnUiThread {
-            // "displayMessage"という合言葉で、データを付けてベルを鳴らす！
             channel.invokeMethod("displayMessage", dataForFlutter)
         }
     }
@@ -575,7 +548,7 @@ class MainActivity : FlutterActivity() {
         // 現在のTTLの値を取得し、そこから1を引く
         val newTtl = receivedPacket.timeToLive - 1
 
-        println("✈️ [転送処理] TTLを ${receivedPacket.timeToLive} から $newTtl に変更します。")
+        println("[転送処理] TTLを ${receivedPacket.timeToLive} から $newTtl に変更します。")
 
         // TTLの値だけを新しいものに入れ替えた、メッセージデータの完璧なコピーを作成する
         val packetToRelay = receivedPacket.copy(timeToLive = newTtl)
