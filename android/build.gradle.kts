@@ -19,3 +19,6 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+plugins {
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.20" apply false
+}
