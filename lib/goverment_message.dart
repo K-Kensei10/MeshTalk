@@ -1,20 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:meshtalk/main.dart';
+import 'package:anslin/main.dart';
 import 'package:flutter/services.dart';
+import 'package:anslin/snack_bar.dart';
 
 class LocalGovernmentPageState extends State<LocalGovernmentPage> {
-  static const methodChannel = MethodChannel('meshtalk.flutter.dev/contact');
+  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
 
-  void _sendMessage(String message, String phoneNum, String messageType, String targetPhoneNum) async {
+  void _sendMessage(
+    String message,
+    String phoneNum,
+    String messageType,
+    String targetPhoneNum,
+  ) async {
     try {
-      await methodChannel.invokeMethod<String>('sendMessage', {
+      final result = await methodChannel.invokeMethod<String>('sendMessage', {
         'message': message,
         'phoneNum': phoneNum,
         'messageType': messageType,
         'targetPhoneNum': targetPhoneNum,
       });
+
+      if (!mounted) return; // ← ここで安全確認！
+
+      handleScanResultAndShowSnackbar(result, context);
     } on PlatformException catch (e) {
+      if (!mounted) return;
+
+      handleScanResultAndShowSnackbar(e, context);
       debugPrint("$e");
+    } catch (e) {
+      if (!mounted) return;
+
+      handleScanResultAndShowSnackbar("unknown_error", context);
+      debugPrint("Unexpected error: $e");
     }
   }
 
@@ -85,7 +103,7 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
                         // AppData.myPhoneNum ?? "", // phoneNum
                         selectedSubject ?? "その他", // messageType
                         // AppData.governmentPhoneNum ?? "", // targetPhoneNum
-                        "09000000000"
+                        "09000000000",
                       );
 
                       AppData.receivedMessages.add({
