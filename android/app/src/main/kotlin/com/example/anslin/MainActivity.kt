@@ -266,9 +266,20 @@ class BluetoothLeController(public val activity : Activity) {
     override fun onConnectionStateChange(gatt: BluetoothGatt,status: Int, newState: Int) {
       if (newState == BluetoothProfile.STATE_CONNECTED) {
         Log.d("Gatt","接続成功")
-        bluetoothGatt?.discoverServices()
+        //gatt通信量のサイズ変更
+        gatt.requestMtu(512)
       }
     }
+
+    override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+      if (status == BluetoothGatt.GATT_SUCCESS) {
+        Log.d("Gatt", "MTU変更成功: $mtu バイト")
+      } else {
+        Log.e("Gatt", "MTU変更失敗")
+      }
+      bluetoothGatt?.discoverServices()
+    }
+
 
     //サービスが検出されたとき
     override fun onServicesDiscovered(gatt: BluetoothGatt?,status: Int) {
@@ -284,6 +295,9 @@ class BluetoothLeController(public val activity : Activity) {
       readCharacteristic = service.getCharacteristic(READ_CHARACTERISTIC_UUID)//TODOここら辺の例外処理
       if (readCharacteristic != null) {
         Log.d("GATT", "Read Characteristic取得成功")
+        val readChar = bluetoothGatt?.getService(CONNECT_UUID)?.getCharacteristic(READ_CHARACTERISTIC_UUID)
+        bluetoothGatt?.readCharacteristic(readChar)
+
       }
       writeCharacteristic = service.getCharacteristic(WRITE_CHARACTERISTIC_UUID)
       if (writeCharacteristic != null) {
@@ -295,6 +309,26 @@ class BluetoothLeController(public val activity : Activity) {
         
       }
     }
+
+    @Deprecated("Deprecated in API level 33")
+    override fun onCharacteristicRead(
+      gatt: BluetoothGatt,
+      characteristic: BluetoothGattCharacteristic,
+      status: Int
+    ) 
+    {
+      if (status == BluetoothGatt.GATT_SUCCESS) {
+        val data: ByteArray? = characteristic.getValue()
+        val message = data?.let { String(it, Charsets.UTF_8) } ?: ""
+        Log.d("BLE_READ", "受信メッセージ: $message")
+        bluetoothGatt?.disconnect()
+        bluetoothGatt?.close()
+        bluetoothGatt = null
+      } else {
+        Log.e("BLE_READ", "読み取り失敗 status: $status")
+      }
+    }
+
     fun getSupportedGattServices(): List<BluetoothGattService?>? {
       return bluetoothGatt?.services
     }
