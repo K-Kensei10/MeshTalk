@@ -5,7 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 // 各ページのファイルをインポート
 import 'package:anslin/phone_number_request.dart';
 import 'package:anslin/sns.dart';
-import 'package:anslin/safety_check_message.dart'; // ★ ファイル名を修正
+import 'package:anslin/safety_check_message.dart'; 
 import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';

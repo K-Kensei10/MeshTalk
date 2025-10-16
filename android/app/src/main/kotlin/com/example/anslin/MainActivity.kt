@@ -439,7 +439,6 @@ class MainActivity : FlutterActivity() {
                     val data = call.argument<String>("data")
                     if (data != null) {
                         MessageBridge.onMessageReceived(data)
-                        result.success("メッセージをキューに転送しました。")
                     } else {
                         result.error("DATA_NULL", "データがありません。", null)
                     }
