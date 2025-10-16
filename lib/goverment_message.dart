@@ -1,132 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:anslin/main.dart';
-import 'package:flutter/services.dart';
-import 'package:anslin/snack_bar.dart';
 
-class LocalGovernmentPageState extends State<LocalGovernmentPage> {
-  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
+// ★ 修正点: StatefulWidgetの「設計図」クラスを追加
+class GovernmentHostPage extends StatefulWidget {
+  const GovernmentHostPage({super.key});
 
-  void _sendMessage(
-    String message,
-    String phoneNum,
-    String messageType,
-    String targetPhoneNum,
-  ) async {
-    try {
-      final result = await methodChannel.invokeMethod<String>('sendMessage', {
-        'message': message,
-        'phoneNum': phoneNum,
-        'messageType': messageType,
-        'targetPhoneNum': targetPhoneNum,
-      });
+  @override
+  State<GovernmentHostPage> createState() => _GovernmentHostPageState();
+}
 
-      if (!mounted) return; // ← ここで安全確認！
-
-      handleScanResultAndShowSnackbar(result, context);
-    } on PlatformException catch (e) {
-      if (!mounted) return;
-
-      handleScanResultAndShowSnackbar(e, context);
-      debugPrint("$e");
-    } catch (e) {
-      if (!mounted) return;
-
-      handleScanResultAndShowSnackbar("unknown_error", context);
-      debugPrint("Unexpected error: $e");
-    }
-  }
-
-  void _showMessageModal() {
+// ★ 修正点: クラス名をアンダースコア付きに変更
+class _GovernmentHostPageState extends State<GovernmentHostPage> {
+  void _showCreateMessageModal() {
+    final messageController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
-        String? selectedSubject;
-        final TextEditingController detailController = TextEditingController();
-        int charCount = 0;
+        return AlertDialog(
+          title: const Text("全体メッセージ作成"),
+          content: TextField(
+            controller: messageController,
+            maxLength: 50,
+            decoration: const InputDecoration(hintText: "メッセージを入力してください (50文字以内)"),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("キャンセル")),
+            ElevatedButton(
+              onPressed: () {
+                if (messageController.text.isNotEmpty) {
+                  // ★ 修正点: ベルを鳴らす処理
+                  final currentList = AppData.officialAnnouncements.value;
+                  currentList.insert(0, {
+                    "text": messageController.text,
+                    "time": "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
+                  });
+                  AppData.officialAnnouncements.value = List.from(currentList);
 
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text("自治体へメッセージを送信"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: "件名",
-                      border: OutlineInputBorder(),
-                    ),
-                    items: ["救助要請", "物資要請", "けが人の報告", "その他"].map((
-                      String subject,
-                    ) {
-                      return DropdownMenuItem<String>(
-                        value: subject,
-                        child: Text(subject),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      selectedSubject = newValue;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: detailController,
-                    maxLength: 50,
-                    decoration: InputDecoration(
-                      labelText: "詳細",
-                      border: const OutlineInputBorder(),
-                      counterText: '$charCount/50',
-                    ),
-                    onChanged: (text) {
-                      setState(() {
-                        charCount = text.length;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
+                  if (mounted) {
                     Navigator.of(context).pop();
-                  },
-                  child: const Text("キャンセル"),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (selectedSubject != null &&
-                        detailController.text.isNotEmpty) {
-                      //Kotlin呼び出しmessage
-                      _sendMessage(
-                        detailController.text, // message
-                        "000000000000",
-                        // AppData.myPhoneNum ?? "", // phoneNum
-                        selectedSubject ?? "その他", // messageType
-                        // AppData.governmentPhoneNum ?? "", // targetPhoneNum
-                        "09000000000",
-                      );
-
-                      AppData.receivedMessages.add({
-                        "subject": selectedSubject!,
-                        "detail": detailController.text,
-                        "time":
-                            "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
-                      });
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("メッセージを送信しました")),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("件名と詳細を入力してください")),
-                      );
-                    }
-                  },
-                  child: const Text("送信"),
-                ),
-              ],
-            );
-          },
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("公式メッセージを送信しました")));
+                  }
+                }
+              },
+              child: const Text("送信"),
+            ),
+          ],
         );
       },
     );
@@ -136,81 +54,57 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: "ホストモード設定",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HostAuthPage()),
-              );
-            },
-          ),
-        ],
+        title: const Text("ホストモード - 自治体管理画面"),
+        backgroundColor: Colors.red[800],
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-          const Text(
-            "自治体からのお知らせ",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const Divider(),
-          Expanded(
-            child: AppData.officialAnnouncements.isEmpty
-                ? const Center(child: Text("まだお知らせはありません"))
-                : ListView.builder(
-                    itemCount: AppData.officialAnnouncements.length,
-                    itemBuilder: (context, index) {
-                      final msg = AppData.officialAnnouncements[index];
+      // ★ 修正点: 「ベルの音を聞く担当者 (ValueListenableBuilder)」を配置
+      body: ValueListenableBuilder<List<Map<String, String>>>(
+        valueListenable: AppData.receivedMessages, // 安否確認のベルを聞く
+        builder: (context, receivedMessages, child) {
+          // ベルが鳴るたびに、この中が最新の`receivedMessages`で再描画される
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  elevation: 4,
+                  child: ListTile(
+                    leading: const Icon(Icons.send),
+                    title: const Text("全体メッセージ作成"),
+                    onTap: _showCreateMessageModal,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text("避難者からの受信メッセージ一覧", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Divider(),
+                if (receivedMessages.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Center(child: Text("受信メッセージはありません")),
+                  )
+                else
+                  // ★ 修正点: builderから受け取った`receivedMessages`を使う
+                  Column(
+                    children: receivedMessages.map((msg) {
                       return Card(
-                        color: Colors.lightBlue[50],
-                        margin: const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 8,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.info, color: Colors.blue),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    "公式情報",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    msg["time"] ?? "",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(msg["text"] ?? ""),
-                            ],
-                          ),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text("件名: ${msg['subject']}"),
+                          subtitle: Text(msg['detail'] ?? ""),
+                          trailing: Text(msg['time'] ?? ""),
                         ),
                       );
-                    },
+                    }).toList(),
                   ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showMessageModal,
-        tooltip: '自治体へメッセージを送る',
-        child: const Icon(Icons.add),
+                const SizedBox(height: 16),
+                const Text("中継メッセージ管理 (開発中)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Divider(),
+                const Center(child: Text("この機能は現在開発中です。")),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
