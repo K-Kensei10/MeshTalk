@@ -95,6 +95,7 @@ class _MainPageState extends State<MainPage> {
         final data = Map<String, dynamic>.from(call.arguments);
         AppData.addReceivedData(data); // ← 受信データを振り分けて保存
         setState(() {}); // ← 表示更新（必要に応じて）
+        print(data); // ← 受信確認のログ
       }
     });
   }
