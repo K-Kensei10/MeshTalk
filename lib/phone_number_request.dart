@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:anslin/main.dart';
 
-class PhoneInputPageState extends State<PhoneInputPage> {
+// ★ 修正点: StatefulWidgetの「設計図」クラスを追加
+class PhoneInputPage extends StatefulWidget {
+  const PhoneInputPage({super.key});
+
+  @override
+  State<PhoneInputPage> createState() => _PhoneInputPageState();
+}
+
+// ★ 修正点: クラス名をアンダースコア付きに変更
+class _PhoneInputPageState extends State<PhoneInputPage> {
   final TextEditingController _phoneController = TextEditingController();
   String? _errorText;
 
@@ -16,6 +25,8 @@ class PhoneInputPageState extends State<PhoneInputPage> {
     if (phoneNumber.length >= 10 &&
         phoneNumber.length <= 11 &&
         int.tryParse(phoneNumber) != null) {
+      // mountedチェックを追加して安全性を高める
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainPage()),

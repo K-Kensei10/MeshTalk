@@ -32,6 +32,56 @@ import androidx.core.content.ContextCompat;
 
 
 import android.util.Log
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+
+object MessageBridge {
+
+//メッセージを一時的に保管  
+private val messageQueue = mutableListOf<String>()  
+
+private var activityHandler: ((jsonData: String) -> Unit)? = null  
+
+
+fun onMessageReceived(jsonData: String) {  
+    activityHandler?.let { handler ->  
+        handler(jsonData)  
+    } ?: run {  
+        messageQueue.add(jsonData)  
+    }  
+}  
+
+fun registerActivityHandler(handler: (jsonData: String) -> Unit) {  
+    activityHandler = handler  
+
+    if (messageQueue.isNotEmpty()) {  
+
+        messageQueue.forEach { jsonData ->  
+            handler(jsonData)  
+        }  
+        messageQueue.clear()  
+    }  
+}  
+}
+
+@Serializable
+data class DisasterMessage(
+@SerialName("MD")
+val messageContent: String,
+
+[@SerialName](https://github.com/SerialName)("t_p_n")  
+val toPhoneNumber: String,  
+
+[@SerialName](https://github.com/SerialName)("type")  
+val messageType: String,  
+
+[@SerialName](https://github.com/SerialName)("f_p_n")  
+val fromPhoneNumber: String,  
+
+[@SerialName](https://github.com/SerialName)("TTL")  
+val timeToLive: Int  
+)
 
 val CONNECT_UUID = UUID.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
 val READ_CHARACTERISTIC_UUID = UUID.fromString("a3f9c1d2-96e9-45a1-90f2-e392533ef877")
@@ -385,6 +435,8 @@ fun checkPermissions(context: Context, onResult: (String?) -> Unit) {
 
 class MainActivity : FlutterActivity() {
   private val CHANNEL = "anslin.flutter.dev/contact"
+  private lateinit var channel: MethodChannel  
+//FlutterとKotlin間の通信チャネルを設定
 
   override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
@@ -433,8 +485,129 @@ class MainActivity : FlutterActivity() {
               }
             }
           }
-          else -> result.notImplemented()
+         "routeToMessageBridge" -> {
+                    val data = call.argument<String>("data")
+                    if (data != null) {
+                        MessageBridge.onMessageReceived(data)
+                        result.success("メッセージをキューに転送しました。")
+                    } else {
+                        result.error("DATA_NULL", "データがありません。", null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+        MessageBridge.registerActivityHandler { jsonData ->
+            runOnUiThread {
+                message_separate_Json(jsonData)
+            }
         }
     }
-  }
+
+    //================= メッセージ処理 =================
+    private fun message_separate_Json(jsonData: String) {
+        println("▶️ データ処理を開始します...")
+        try {
+            val packet = Json.decodeFromString<DisasterMessage>(jsonData)
+
+            val message: String = packet.messageContent
+            val to_phone_number: String = packet.toPhoneNumber
+            val message_type: String = packet.messageType
+            val from_phone_number: String = packet.fromPhoneNumber
+            val TTL: Int = packet.timeToLive
+
+            val MY_PHONE_NUMBER = "01234567890" // 例として固定値を使用
+
+            println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL")
+
+            when (message_type) {
+                "1" -> {// SNS
+                    println(" [処理]Type 1 (SNS) を受信")
+
+                    displayMessageOnFlutter(packet) // Flutter側に表示を依頼
+
+                    if (TTL > 0) {
+                        println("TTLが残っているため、他の端末へ転送します。")
+                        relayMessage(packet)
+                    }
+                }
+
+
+                "2" -> {// 宛先指定
+                    if (to_phone_number == MY_PHONE_NUMBER) {  // MY_PHONE_NUMBERはアプリ内で定義されていると仮定
+                        println(" [処理]Type 2 (自分宛)を受信")
+
+                        displayMessageOnFlutter(packet) // Flutter側に表示を依頼
+
+                        //自治体端末であればデータをためるコードをここに追加
+                    } else {
+                        println("  -> 宛先が違うため、転送のみ行います。")
+                        if (TTL > 0){
+                            relayMessage(packet)
+                            println("  -> TTLが残っているため、他の端末へ転送します。")
+                              }
+                    }
+                }
+
+
+                "3" ->  { // 自治体へ
+                    println("✅ [処理]Type 3: 転送処理を行います。")
+                    //自治体端末である場合、Flutterを呼び出して表示させるコードをここに追加
+                    if (TTL > 0){
+                        relayMessage(packet)
+                        println("  -> TTLが残っているため、他の端末へ転送します。")
+                    }
+                }
+
+
+                "4" -> { // 自治体から
+                    println("[処理]Type 4: Flutterに表示")
+
+                    displayMessageOnFlutter(packet)
+
+                    if (TTL > 0){
+                        relayMessage(packet)
+                        println("  -> TTLが残っているため、他の端末へ転送します。")
+                    }
+                }
+
+
+                else -> println(" [不明] メッセージタイプです。内容: $message")
+            }
+            println("✅ データ処理が完了しました。")
+        }
+
+        catch (e: Exception) {
+            println("❗️ データ処理中にエラーが発生しました: ${e.message}")
+        }
+    }
+
+    private fun displayMessageOnFlutter(packet: DisasterMessage) {
+        println("Flutterにメッセージ表示を依頼します...")
+        val dataForFlutter = mapOf(
+            "type" to packet.messageType,
+            "message" to packet.messageContent,
+            "from" to packet.fromPhoneNumber
+        )
+        runOnUiThread {
+            channel.invokeMethod("displayMessage", dataForFlutter)
+        }
+    }
+    private fun relayMessage(receivedPacket: DisasterMessage) {
+
+        // 現在のTTLの値を取得し、そこから1を引く
+        val newTtl = receivedPacket.timeToLive - 1
+
+        println("[転送処理] TTLを ${receivedPacket.timeToLive} から $newTtl に変更します。")
+
+        // TTLの値だけを新しいものに入れ替えた、メッセージデータの完璧なコピーを作成する
+        val packetToRelay = receivedPacket.copy(timeToLive = newTtl)
+
+        // 新しく作成したデータオブジェクトを、送信用のJSON文字列に変換（エンコード）する
+        val jsonToRelay = Json.encodeToString(DisasterMessage.serializer(), packetToRelay)
+
+        println("転送用のJSON文字列: $jsonToRelay")
+
+        // TODO: ここにBluetoothでデータを送信する関数を呼び出すコードを書く
+    }
 }
