@@ -26,7 +26,7 @@ class _HostAuthPageState extends State<HostAuthPage> {
       if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const LocalGovernmentPage()),
+        MaterialPageRoute(builder: (context) => const GovernmentHostPage()),
       );
     } else {
       setState(() {

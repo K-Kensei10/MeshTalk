@@ -1,75 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:anslin/main.dart';
-import 'package:anslin/host_auth.dart';
-// import 'package:anslin/snack_bar.dart'; // snack_bar.dart が存在しないためコメントアウト
 
 // ★ 修正点: StatefulWidgetの「設計図」クラスを追加
-class LocalGovernmentPage extends StatefulWidget {
-  const LocalGovernmentPage({super.key});
+class GovernmentHostPage extends StatefulWidget {
+  const GovernmentHostPage({super.key});
 
   @override
-  State<LocalGovernmentPage> createState() => _LocalGovernmentPageState();
+  State<GovernmentHostPage> createState() => _GovernmentHostPageState();
 }
 
 // ★ 修正点: クラス名をアンダースコア付きに変更
-class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
-  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
-
-  void _sendMessage(String subject, String detail) {
-    methodChannel.invokeMethod<String>('sendMessage', {
-      'message': detail,
-      'phoneNum': "000000000000", // 仮の自分の番号
-      'messageType': subject,
-      'targetPhoneNum': "09000000000", // 仮の自治体番号
-    });
-
-    // ★ 修正点: ベルを鳴らす処理
-    final currentList = AppData.officialAnnouncements.value;
-    currentList.insert(0, {
-      "text": "【送信済み】件名: $subject\n詳細: $detail",
-      "time": "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
-    });
-    AppData.officialAnnouncements.value = List.from(currentList);
-
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("メッセージを送信しました")));
-    }
-  }
-
-  void _showMessageModal() {
-    String? selectedSubject;
-    final detailController = TextEditingController();
+class _GovernmentHostPageState extends State<GovernmentHostPage> {
+  void _showCreateMessageModal() {
+    final messageController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("自治体へメッセージを送信"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "件名", border: OutlineInputBorder()),
-                items: ["救助要請", "物資要請", "けが人の報告", "その他"].map((subject) {
-                  return DropdownMenuItem<String>(value: subject, child: Text(subject));
-                }).toList(),
-                onChanged: (String? newValue) {
-                  selectedSubject = newValue;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(controller: detailController, decoration: const InputDecoration(labelText: "詳細", border: OutlineInputBorder()), maxLength: 50),
-            ],
+          title: const Text("全体メッセージ作成"),
+          content: TextField(
+            controller: messageController,
+            maxLength: 50,
+            decoration: const InputDecoration(hintText: "メッセージを入力してください (50文字以内)"),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("キャンセル")),
             ElevatedButton(
               onPressed: () {
-                if (selectedSubject != null && detailController.text.isNotEmpty) {
-                  _sendMessage(selectedSubject!, detailController.text);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("件名と詳細を入力してください")));
+                if (messageController.text.isNotEmpty) {
+                  // ★ 修正点: ベルを鳴らす処理
+                  final currentList = AppData.officialAnnouncements.value;
+                  currentList.insert(0, {
+                    "text": messageController.text,
+                    "time": "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
+                  });
+                  AppData.officialAnnouncements.value = List.from(currentList);
+
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("公式メッセージを送信しました")));
+                  }
                 }
               },
               child: const Text("送信"),
@@ -84,66 +54,57 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("自治体連絡"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: "ホストモード設定",
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const HostAuthPage())),
-          ),
-        ],
+        title: const Text("ホストモード - 自治体管理画面"),
+        backgroundColor: Colors.red[800],
       ),
       // ★ 修正点: 「ベルの音を聞く担当者 (ValueListenableBuilder)」を配置
       body: ValueListenableBuilder<List<Map<String, String>>>(
-        valueListenable: AppData.officialAnnouncements, // このベルを聞く
-        builder: (context, messages, child) {
-          // ベルが鳴るたびに、この中が最新の`messages`で再描画される
-          return Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text("自治体からのお知らせ", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ),
-              const Divider(),
-              Expanded(
-                child: messages.isEmpty
-                    ? const Center(child: Text("まだお知らせはありません"))
-                    : ListView.builder(
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final msg = messages[index];
-                          return Card(
-                            color: Colors.lightBlue[50],
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
-                                    const Icon(Icons.info, color: Colors.blue),
-                                    const SizedBox(width: 8),
-                                    const Text("公式情報", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                                    const Spacer(),
-                                    Text(msg["time"] ?? "", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                  ]),
-                                  const SizedBox(height: 8),
-                                  Text(msg["text"] ?? ""),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
+        valueListenable: AppData.receivedMessages, // 安否確認のベルを聞く
+        builder: (context, receivedMessages, child) {
+          // ベルが鳴るたびに、この中が最新の`receivedMessages`で再描画される
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  elevation: 4,
+                  child: ListTile(
+                    leading: const Icon(Icons.send),
+                    title: const Text("全体メッセージ作成"),
+                    onTap: _showCreateMessageModal,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text("避難者からの受信メッセージ一覧", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Divider(),
+                if (receivedMessages.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Center(child: Text("受信メッセージはありません")),
+                  )
+                else
+                  // ★ 修正点: builderから受け取った`receivedMessages`を使う
+                  Column(
+                    children: receivedMessages.map((msg) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text("件名: ${msg['subject']}"),
+                          subtitle: Text(msg['detail'] ?? ""),
+                          trailing: Text(msg['time'] ?? ""),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                const SizedBox(height: 16),
+                const Text("中継メッセージ管理 (開発中)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Divider(),
+                const Center(child: Text("この機能は現在開発中です。")),
+              ],
+            ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showMessageModal,
-        tooltip: '自治体へメッセージを送る',
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -35,6 +35,7 @@ import android.util.Log
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.SerialName
 
 object MessageBridge {
 
@@ -67,20 +68,21 @@ fun registerActivityHandler(handler: (jsonData: String) -> Unit) {
 
 @Serializable
 data class DisasterMessage(
-@SerialName("MD")
-val messageContent: String,
+    // JSONのキー名 "MD" は、この "messageContent" という変数名に対応します
+    @SerialName("message")
+    val messageContent: String,
 
-[@SerialName](https://github.com/SerialName)("t_p_n")  
-val toPhoneNumber: String,  
+    @SerialName("targetPhoneNum")
+    val toPhoneNumber: String,
 
-[@SerialName](https://github.com/SerialName)("type")  
-val messageType: String,  
+    @SerialName("messageType")
+    val messageType: String,
 
-[@SerialName](https://github.com/SerialName)("f_p_n")  
-val fromPhoneNumber: String,  
+    @SerialName("phoneNum")
+    val fromPhoneNumber: String,
 
-[@SerialName](https://github.com/SerialName)("TTL")  
-val timeToLive: Int  
+    @SerialName("TTL")
+    val timeToLive: Int
 )
 
 val CONNECT_UUID = UUID.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
@@ -440,8 +442,8 @@ class MainActivity : FlutterActivity() {
 
   override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
-    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
-      call, result ->
+channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        channel.setMethodCallHandler { call, result ->
         when (call.method) {
           "startCatchMessage" -> {
             //["message", "to_phone_number", "message_type", "from_phone_number", "TTL"]に変える
@@ -489,7 +491,6 @@ class MainActivity : FlutterActivity() {
                     val data = call.argument<String>("data")
                     if (data != null) {
                         MessageBridge.onMessageReceived(data)
-                        result.success("メッセージをキューに転送しました。")
                     } else {
                         result.error("DATA_NULL", "データがありません。", null)
                     }
@@ -516,7 +517,7 @@ class MainActivity : FlutterActivity() {
             val from_phone_number: String = packet.fromPhoneNumber
             val TTL: Int = packet.timeToLive
 
-            val MY_PHONE_NUMBER = "01234567890" // 例として固定値を使用
+            val MY_PHONE_NUMBER = "012-3456-7890" // 例として固定値を使用
 
             println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL")
 
@@ -599,8 +600,7 @@ class MainActivity : FlutterActivity() {
         val newTtl = receivedPacket.timeToLive - 1
 
         println("[転送処理] TTLを ${receivedPacket.timeToLive} から $newTtl に変更します。")
-
-        // TTLの値だけを新しいものに入れ替えた、メッセージデータの完璧なコピーを作成する
+        // TTLを更新した新しいデータオブジェクトを作成
         val packetToRelay = receivedPacket.copy(timeToLive = newTtl)
 
         // 新しく作成したデータオブジェクトを、送信用のJSON文字列に変換（エンコード）する

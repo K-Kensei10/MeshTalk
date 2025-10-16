@@ -1,5 +1,5 @@
 name: anslin
-description: "A new Flutter project."
+description: "避難所アプリ"
 publish_to: "none"
 version: 0.1.0
 
@@ -23,3 +23,11 @@ flutter:
   assets:
     - assets/img/
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/img/app_icon.png"
+  adaptive_icon_background: "#73e8a8" 
+  adaptive_icon_foreground: "assets/img/app_icon.png"
