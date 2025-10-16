@@ -68,7 +68,7 @@ class BluetoothLeController(public val activity : Activity) {
     private var notifyCharacteristic: BluetoothGattCharacteristic? = null
 
   //================= セントラル（メッセージ受信者） =================
-  fun startScanAndConnect(onResult: (Map<String, String>) -> Unit) {
+  fun ScanAndConnect(onResult: (Map<String, String>) -> Unit) {
     //権限チェック
     checkPermissions(context) { result ->
       if (result != null) {
@@ -391,7 +391,7 @@ class MainActivity : FlutterActivity() {
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
       call, result ->
         when (call.method) {
-          "sendMessage" -> {
+          "startCatchMessage" -> {
             //["message", "to_phone_number", "message_type", "from_phone_number", "TTL"]に変える
             val message = call.argument<String>("message") ?: ""
             val phoneNum = call.argument<String>("phoneNum") ?: ""
@@ -403,7 +403,7 @@ class MainActivity : FlutterActivity() {
             val disaster_message_data = messageType + separator + phoneNum +separator + targetPhoneNum + separator + TTL + separator + message
             Log.d("MainActivity", disaster_message_data)
             val bleController = BluetoothLeController(this)
-            bleController.startScanAndConnect { resultMap ->
+            bleController.ScanAndConnect { resultMap ->
               when (resultMap["status"]) {
                 "scan_successful" -> {
                     result.success(resultMap["message"])
@@ -417,7 +417,7 @@ class MainActivity : FlutterActivity() {
               }
             }
           }
-          "startAdvertising" -> {
+          "startSendMessage" -> {
             val bleController = BluetoothLeController(this)
             bleController.SendingMessage { resultMap ->
               when (resultMap["status"]) {
