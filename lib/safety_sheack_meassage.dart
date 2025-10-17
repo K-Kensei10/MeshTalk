@@ -29,10 +29,17 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
   }
 
   //[message,  to_phone_number,  message_type,  from_phone_number,  TTL]
-  void _startSendMessage(String message, String phoneNumber, String myphoneNumber, ) async {
+  void _startSendMessage(String message, String toPhoneNumber, String messageType, String myphoneNumber, String tll) async {
+    List<String> messageList = [
+      message,
+      toPhoneNumber,
+      messageType,
+      myphoneNumber,
+      tll
+    ] ;
+    String messageData = messageList.join(';');
     try {
-      await methodChannel.invokeMethod<String>('startSendMessage', {
-      });
+      await methodChannel.invokeMethod<String>('startSendMessage', messageData);
     } on PlatformException catch (e) {
       debugPrint("$e");
     }
@@ -46,7 +53,7 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
       // 実際はBluetooth経由でメッセージを送信
       _phoneController.clear();
       _messageController.clear();
-      _startSendMessage(phoneNumber.toString(),message);
+      _startSendMessage(message, myPhoneNumber.toString(), "2", phoneNumber.toString(), "150");
     } else {
       ScaffoldMessenger.of(
         context,

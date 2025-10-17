@@ -161,7 +161,7 @@ class BluetoothLeController(public val activity : Activity) {
 
 
   //================= ペリフェラル（メッセージ送信者） =================
-  fun SendingMessage(onResult: (Map<String, String>) -> Unit) {
+  fun SendingMessage(messageData: String,onResult: (Map<String, String>) -> Unit) {
     //権限チェック
     if (advertiser == null) {
       Log.e("BLE_AD", "このデバイスはBLEアドバタイズに対応していません")
@@ -187,6 +187,9 @@ class BluetoothLeController(public val activity : Activity) {
           readCharacteristic = null
           writeCharacteristic = null
           notifyCharacteristic = null
+          onResult(mapOf(
+              "status" to "SEND_MESSAGE_SUCCESSFUL"
+          ))
           }else if(newState == BluetoothProfile.STATE_CONNECTED) {
             Log.d("GATT", "セントラルと交信しています")
           }
@@ -214,9 +217,9 @@ class BluetoothLeController(public val activity : Activity) {
       readCharacteristic = BluetoothGattCharacteristic(READ_CHARACTERISTIC_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
 
       //メッセージデータの書き込み
-      val message = "[message, to_phone_number, message_type, from_phone_number, TTL]"
+      //message, to_phone_number, message_type, from_phone_number, TTL
       readCharacteristic?.let { readChar ->
-        readChar.value = message.toByteArray(Charsets.UTF_8)
+        readChar.value = messageData.toByteArray(Charsets.UTF_8)
       }
       
       // サービスに追加
@@ -244,14 +247,11 @@ class BluetoothLeController(public val activity : Activity) {
           handler.postDelayed({
             advertiser.stopAdvertising(mAdvertiseCallback)
             Log.e("BLE_AD", "アドバタイズの停止")
-            onResult(mapOf(
-              "status" to "advertise_stopped",
-              "message" to "アドバタイズは正常に終了しました。"
-            ))
           },ADVERTISE_PERIOD)
         }
         override fun onStartFailure(errorCode: Int) {
           Log.e("BLE_AD", "アドバタイズ失敗: $errorCode")
+          advertiser.stopAdvertising(mAdvertiseCallback)
           onResult(mapOf(
             "status" to "advertise_failed",
             "message" to "通信の開始に失敗しました。もう一度お試しください。（コード: $errorCode）"
@@ -392,16 +392,6 @@ class MainActivity : FlutterActivity() {
       call, result ->
         when (call.method) {
           "startCatchMessage" -> {
-            //["message", "to_phone_number", "message_type", "from_phone_number", "TTL"]に変える
-            val message = call.argument<String>("message") ?: ""
-            val phoneNum = call.argument<String>("phoneNum") ?: ""
-            val messageType = call.argument<String>("messageType") ?: ""
-            val targetPhoneNum = call.argument<String>("targetPhoneNum") ?: ""
-            val TTL = 150
-            val separator = "*****"
-
-            val disaster_message_data = messageType + separator + phoneNum +separator + targetPhoneNum + separator + TTL + separator + message
-            Log.d("MainActivity", disaster_message_data)
             val bleController = BluetoothLeController(this)
             bleController.ScanAndConnect { resultMap ->
               when (resultMap["status"]) {
@@ -418,14 +408,15 @@ class MainActivity : FlutterActivity() {
             }
           }
           "startSendMessage" -> {
+            val messageData = call.arguments as? String
             val bleController = BluetoothLeController(this)
-            bleController.SendingMessage { resultMap ->
+            bleController.SendingMessage(messageData!!) { resultMap ->
               when (resultMap["status"]) {
+                "SEND_MESSAGE_SUCCESSFUL" -> {
+                    result.success("メッセージが送信されました。")
+                }
                 "advertise_failed" -> {
                     result.error("FAILED_ADVERTISING", resultMap["message"], null)
-                }
-                "advertise_stopped" -> {
-                    result.success(resultMap["message"]) 
                 }
                 else -> {
                     result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
