@@ -5,6 +5,7 @@ import androidx.core.os.postDelayed;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodChannel;
+import io.flutter.plugin.common.EventChannel;
 import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothAdapter;
@@ -38,6 +39,55 @@ val READ_CHARACTERISTIC_UUID = UUID.fromString("a3f9c1d2-96e9-45a1-90f2-e392533e
 val WRITE_CHARACTERISTIC_UUID = UUID.fromString("7e4b8a90-96e9-45a1-90f2-e392533ef877")
 val NOTIFY_CHARACTERISTIC_UUID = UUID.fromString("1d2e3f4a-96e9-45a1-90f2-e392533ef877")
 
+//Flutter
+class MainActivity : FlutterActivity() {
+  private val CHANNEL = "anslin.flutter.dev/contact"
+
+  override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
+    super.configureFlutterEngine(flutterEngine)
+    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
+      call, result ->
+        when (call.method) {
+          "startCatchMessage" -> {
+            val bleController = BluetoothLeController(this)
+            bleController.ScanAndConnect { resultMap ->
+              when (resultMap["status"]) {
+                "RECEIVE_MESSAGE_SUCCESSFUL" -> {
+                    result.success(resultMap["message"])
+                }
+                "device_not_found" -> {
+                    result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
+                }
+                else -> {
+                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
+                }
+              }
+            }
+          }
+          "startSendMessage" -> {
+            val messageData = call.arguments as? String
+            val bleController = BluetoothLeController(this)
+            bleController.SendingMessage(messageData!!) { resultMap ->
+              when (resultMap["status"]) {
+                "SEND_MESSAGE_SUCCESSFUL" -> {
+                    result.success("メッセージが送信されました。")
+                }
+                "advertise_failed" -> {
+                    result.error("FAILED_ADVERTISING", resultMap["message"], null)
+                }
+                else -> {
+                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
+                }
+              }
+            }
+          }
+          else -> result.notImplemented()
+        }
+    }
+  }
+}
+
+
 //BLT class
 class BluetoothLeController(public val activity : Activity) {
   private val bluetoothManager = activity.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -55,6 +105,7 @@ class BluetoothLeController(public val activity : Activity) {
   private lateinit var mAdvertiseCallback : AdvertiseCallback
   private lateinit var mGattServerCallback : BluetoothGattServerCallback
   private lateinit var mBluetoothGattServer: BluetoothGattServer
+  private var scanResultCallback: ((Map<String, String>) -> Unit)? = null
   init {adapter?.name = "AL"}
 
 
@@ -69,6 +120,7 @@ class BluetoothLeController(public val activity : Activity) {
 
   //================= セントラル（メッセージ受信者） =================
   fun ScanAndConnect(onResult: (Map<String, String>) -> Unit) {
+    scanResultCallback = onResult
     //権限チェック
     checkPermissions(context) { result ->
       if (result != null) {
@@ -260,7 +312,7 @@ class BluetoothLeController(public val activity : Activity) {
       }
       handler.postDelayed({
         advertiser.startAdvertising(advertiseSetting, advertiseData, mAdvertiseCallback)
-      }, 500)
+      }, 300)
     }
   }
 
@@ -293,7 +345,7 @@ class BluetoothLeController(public val activity : Activity) {
         gatt.requestMtu(512)
         handler.postDelayed({
           gatt.discoverServices()
-        }, 300)
+        }, 200)
       }
     }
 
@@ -342,6 +394,12 @@ class BluetoothLeController(public val activity : Activity) {
         val data: ByteArray? = characteristic.getValue()
         val message = data?.let { String(it, Charsets.UTF_8) } ?: ""
         Log.d("BLE_READ", "受信メッセージ: $message")
+        scanResultCallback?.invoke(
+          mapOf(
+            "status" to "RECEIVE_MESSAGE_SUCCESSFUL",
+            "message" to message
+          )
+        )
         bluetoothGatt?.disconnect()
         bluetoothGatt?.close()
         bluetoothGatt = null
@@ -382,50 +440,20 @@ fun checkPermissions(context: Context, onResult: (String?) -> Unit) {
     }
 }
 
+//ステータスの監視
+private var eventSink: EventChannel.EventSink? = null
 
-class MainActivity : FlutterActivity() {
-  private val CHANNEL = "anslin.flutter.dev/contact"
-
-  override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
-    super.configureFlutterEngine(flutterEngine)
-    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
-      call, result ->
-        when (call.method) {
-          "startCatchMessage" -> {
-            val bleController = BluetoothLeController(this)
-            bleController.ScanAndConnect { resultMap ->
-              when (resultMap["status"]) {
-                "scan_successful" -> {
-                    result.success(resultMap["message"])
-                }
-                "device_not_found" -> {
-                    result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
-                }
-                else -> {
-                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
-                }
-              }
-            }
-          }
-          "startSendMessage" -> {
-            val messageData = call.arguments as? String
-            val bleController = BluetoothLeController(this)
-            bleController.SendingMessage(messageData!!) { resultMap ->
-              when (resultMap["status"]) {
-                "SEND_MESSAGE_SUCCESSFUL" -> {
-                    result.success("メッセージが送信されました。")
-                }
-                "advertise_failed" -> {
-                    result.error("FAILED_ADVERTISING", resultMap["message"], null)
-                }
-                else -> {
-                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
-                }
-              }
-            }
-          }
-          else -> result.notImplemented()
+EventChannel(flutterEngine.dartExecutor.binaryMessenger, "ble_status")
+    .setStreamHandler(object : EventChannel.StreamHandler {
+        override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+            eventSink = events
         }
-    }
-  }
+
+        override fun onCancel(arguments: Any?) {
+            eventSink = null
+        }
+    })
+
+fun sendBleStatus(status: String) {
+    eventSink?.success(status)
 }

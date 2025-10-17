@@ -93,6 +93,7 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(onPressed: _sendMessage, child: const Text("送信")),
+            
           ],
         ),
       ),
