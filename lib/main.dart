@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '避難所アプリ',
+      title: 'ANSLIN',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         fontFamily: 'Noto Sans JP',
@@ -51,7 +51,7 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const ShelterSNSPage(), 
+    const ShelterSNSPage(),
     const SafetyCheckPage(),
     const LocalGovernmentPage(),
   ];
@@ -69,7 +69,7 @@ class _MainPageState extends State<MainPage> {
     // 描画が終わったあとにダイアログを表示
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkAndRequestPermissions();
-  });
+    });
   }
 
   @override
@@ -80,7 +80,10 @@ class _MainPageState extends State<MainPage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "避難所SNS"),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: "安否確認"),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance),label: "自治体連絡",),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance),
+            label: "自治体連絡",
+          ),
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -90,7 +93,7 @@ class _MainPageState extends State<MainPage> {
 }
 
 //権限要求
-void checkAndRequestPermissions() async{
+void checkAndRequestPermissions() async {
   final permissions = [
     Permission.bluetooth,
     Permission.bluetoothAdvertise,
@@ -108,7 +111,6 @@ void checkAndRequestPermissions() async{
     }
   }
 }
-
 
 // ================= 電話番号入力画面 =================
 class PhoneInputPage extends StatefulWidget {
