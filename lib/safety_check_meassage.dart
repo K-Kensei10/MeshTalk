@@ -9,17 +9,38 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
-  int _charCount = 0;
+  List<String> receivedMessages = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _messageController.addListener(() {
-      setState(() {
-        _charCount = _messageController.text.length;
-      });
-    });
+
+  Future<void> _startCatchMessage() async {
+    try {
+      final String? rawMessage = await methodChannel.invokeMethod<String>('startCatchMessage');
+      if (rawMessage != null && rawMessage.isNotEmpty) {
+        final parts = rawMessage.split(';');
+        if (parts.length >= 5) {
+          final formatted = "電話番号：${parts[3]}, メッセージ：${parts[0]}";
+          setState(() {
+            receivedMessages.insert(0, "$formatted\n(${DateTime.now()})");
+          });
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("メッセージを受信しました")),
+          );
+        } else {
+          debugPrint("メッセージ形式が不正: $rawMessage");
+        }
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("メッセージは受信されませんでした")),
+        );
+      }
+    } on PlatformException catch (e) {
+      debugPrint("受信エラー: $e");
+    }
   }
+
+
 
   @override
   void dispose() {
@@ -72,65 +93,57 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
     }
   }
 
-
-  void _sendMessage() {
-    final phoneNumber = _phoneController.text.replaceAll('-', '');
-    final message = _messageController.text;
-    if ( (phoneNumber.length == 10 || phoneNumber.length == 11) &&
-        _messageController.text.isNotEmpty) {
-      // 実際はBluetooth経由でメッセージを送信
-      _phoneController.clear();
-      _messageController.clear();
-      _startSendMessage(message, myPhoneNumber.toString(), "2", phoneNumber.toString(), "150");
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("有効な宛先とメッセージを入力してください")));
-    }
-  }
-
   void _showPostModal() {
+    final TextEditingController _modalPhoneController = TextEditingController();
+    final TextEditingController _modalMessageController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) {
-        String postText = "";
         return AlertDialog(
           title: const Text("新しい投稿"),
-          content: TextField(
-            maxLength: 50,
-            decoration: const InputDecoration(
-              hintText: "メッセージを入力してください (50文字以内)",
-            ),
-            onChanged: (text) {
-              postText = text;
-            },
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _modalPhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: "宛先（電話番号）",
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _modalMessageController,
+                maxLength: 50,
+                decoration: const InputDecoration(
+                  hintText: "メッセージを入力してください (50文字以内)",
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text("キャンセル"),
             ),
             ElevatedButton(
               onPressed: () async {
-                if (postText.isNotEmpty) {
-                  final phoneNumber = _phoneController.text.replaceAll('-', '');
-                  final message = postText;
-                  if (phoneNumber.length == 10 || phoneNumber.length == 11) {
-                    final result = await methodChannel.invokeMethod<String>(
-                      'startSendMessage',
-                      [message, myPhoneNumber.toString(), "2", phoneNumber, "150"].join(';'),
-                    );
-                    setState(() {
-                      receivedMessages.insert(0, result ?? "メッセージを受信できませんでした");
-                    });
-                    Navigator.of(context).pop();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("有効な宛先を入力してください")),
-                    );
-                  }
+                final phoneNumber = _modalPhoneController.text.replaceAll('-', '');
+                final message = _modalMessageController.text;
+                if ((phoneNumber.length == 10 || phoneNumber.length == 11) && message.isNotEmpty) {
+                  Navigator.of(context).pop(); // ✅ 先に閉じる
+
+                  await methodChannel.invokeMethod<String>(
+                    'startSendMessage',
+                    [message, myPhoneNumber.toString(), "2", phoneNumber, "150"].join(';'),
+                  );
+
+                  _startCatchMessage(); // ✅ 送信後に受信処理
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("有効な宛先とメッセージを入力してください")),
+                  );
                 }
               },
               child: const Text("送信"),
@@ -141,49 +154,52 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
     );
   }
 
-List<String> receivedMessages = [];
 
 @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(title: const Text("安否確認")),
-    floatingActionButton: FloatingActionButton(
-      onPressed: _showPostModal,
-      tooltip: '新しい投稿',
-      child: const Icon(Icons.add),
-    ),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          const Text(
-            "メッセージは暗号化され、中継者には見えません",
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: "宛先（電話番号）",
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.builder(
-              itemCount: receivedMessages.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  child: ListTile(
-                    title: Text(receivedMessages[index]),
-                  ),
-                );
-              },
-            ),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("安否確認"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.wifi_tethering),
+            tooltip: "スキャン",
+            onPressed: _startCatchMessage,
           ),
         ],
       ),
-    ),
-  );
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showPostModal,
+        tooltip: '新しい投稿',
+        child: const Icon(Icons.add),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const Text(
+              "メッセージは暗号化され、中継者には見えません",
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: receivedMessages.isEmpty
+                  ? const Center(child: Text("まだメッセージは受信されていません"))
+                  : ListView.builder(
+                      itemCount: receivedMessages.length,
+                      itemBuilder: (context, index) {
+                        return Card(
+                          child: ListTile(
+                            title: Text(receivedMessages[index]),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
-}
+

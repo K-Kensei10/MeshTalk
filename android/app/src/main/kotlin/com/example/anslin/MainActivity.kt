@@ -439,21 +439,3 @@ fun checkPermissions(context: Context, onResult: (String?) -> Unit) {
         onResult(message)
     }
 }
-
-//ステータスの監視
-private var eventSink: EventChannel.EventSink? = null
-
-EventChannel(flutterEngine.dartExecutor.binaryMessenger, "ble_status")
-    .setStreamHandler(object : EventChannel.StreamHandler {
-        override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-            eventSink = events
-        }
-
-        override fun onCancel(arguments: Any?) {
-            eventSink = null
-        }
-    })
-
-fun sendBleStatus(status: String) {
-    eventSink?.success(status)
-}
