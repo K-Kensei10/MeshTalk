@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:anslin/main.dart';
 import 'package:flutter/services.dart';
 
+//TEST
+final myPhoneNumber = 09012345678;
+
 class SafetyCheckPageState extends State<SafetyCheckPage> {
-  final TextEditingController _recipientController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
   int _charCount = 0;
 
@@ -21,31 +24,40 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
   @override
   void dispose() {
     _messageController.dispose();
-    _recipientController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
-  void _advertising() async {
+  //[message,  to_phone_number,  message_type,  from_phone_number,  TTL]
+  void _startSendMessage(String message, String toPhoneNumber, String messageType, String myphoneNumber, String tll) async {
+    List<String> messageList = [
+      message,
+      toPhoneNumber,
+      messageType,
+      myphoneNumber,
+      tll
+    ] ;
+    String messageData = messageList.join(';');
     try {
-      await methodChannel.invokeMethod<String>('startAdvertising', {});
+      await methodChannel.invokeMethod<String>('startSendMessage', messageData);
     } on PlatformException catch (e) {
       debugPrint("$e");
     }
   }
 
   void _sendMessage() {
-    if (_recipientController.text.isNotEmpty &&
+    final phoneNumber = _phoneController.text.replaceAll('-', '');
+    final message = _messageController.text;
+    if ( (phoneNumber.length == 10 || phoneNumber.length == 11) &&
         _messageController.text.isNotEmpty) {
       // 実際はBluetooth経由でメッセージを送信
-      _recipientController.clear();
+      _phoneController.clear();
       _messageController.clear();
-      //TEST
-      _advertising();
-      // 送信完了のフィードバックなし（仕様通り）
+      _startSendMessage(message, myPhoneNumber.toString(), "2", phoneNumber.toString(), "150");
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("宛先とメッセージを入力してください")));
+      ).showSnackBar(const SnackBar(content: Text("有効な宛先とメッセージを入力してください")));
     }
   }
 
@@ -63,7 +75,7 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _recipientController,
+              controller: _phoneController,
               decoration: const InputDecoration(
                 labelText: "宛先（電話番号）",
                 border: OutlineInputBorder(),
