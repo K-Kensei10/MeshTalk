@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:anslin/phone_number_request.dart';
 import 'package:anslin/sns.dart';
-import 'package:anslin/safety_sheack_meassage.dart';
+import 'package:anslin/safety_check_meassage.dart';
 import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
