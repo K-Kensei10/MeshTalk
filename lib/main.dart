@@ -24,10 +24,11 @@ class AppData {
   static final ValueNotifier<List<Map<String, dynamic>>> snsPosts = ValueNotifier([]);
 
   // ★ 修正点: データが追加されたら「ベルを鳴らす」関数
-  static void addReceivedData(Map<String, dynamic> data) {
-    final type = data['type'].toString(); // 安全のためStringに変換
-    final text = data['message'] ?? 'メッセージなし';
-    final phone = data['from'] ?? "不明";
+static void addReceivedData(List<dynamic> data) {
+    // キー指定 (data['type']) からインデックス指定 (data[0]) に変更 
+    final text = data[0] ?? 'メッセージなし'; // 2番目 (インデックス 1) に message
+    final type = data[1].toString(); // 1番目 (インデックス 0) に type
+    final phone = data[2] ?? "不明"; // 3番目 (インデックス 2) に from
     final time = "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
 
     if (type == '1') {
@@ -89,6 +90,8 @@ class _MainPageState extends State<MainPage> {
     const ShelterSNSPage(),
     const SafetyCheckPage(),
     const LocalGovernmentPage(),
+      const HostAuthPage(),
+        const GovernmentHostPage(),
   ];
 
   @override
@@ -103,7 +106,7 @@ class _MainPageState extends State<MainPage> {
   void _initPlatformListener() {
     methodChannel.setMethodCallHandler((call) async {
       if (call.method == "displayMessage") {
-        final data = Map<String, dynamic>.from(call.arguments);
+final List<dynamic> data = List<dynamic>.from(call.arguments);;
         print('KOTLINからの受信成功: $data');
         // ★ 修正点: データ保管庫にデータを追加（自動でベルが鳴る）
         AppData.addReceivedData(data);

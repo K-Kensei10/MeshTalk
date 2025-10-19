@@ -35,7 +35,6 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         'targetPhoneNum': phone,
       });
 
-      // ★ 修正点: ベルを鳴らす処理
       final currentList = AppData.receivedMessages.value;
       currentList.insert(0, {
         'subject': '送信済み',
@@ -73,6 +72,55 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("キャンセル")),
+                                     const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange, // ボタンの色をオレンジに
+              ),
+              child: const Text(
+                '安否確認テスト実行',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () async {
+                // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
+                try {
+                  const messagedata ="Flutterからのテスト;01234567890;2;080-1111-2222;3";
+                  final result = await methodChannel.invokeMethod('routeToMessageBridge', messagedata);
+                  // 画面下にメッセージを表示
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(result)),
+                  );
+                } catch (e) {
+                  print('テスト呼び出し中にエラー: $e');
+                }
+              },
+            ),
+                         const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange, // ボタンの色をオレンジに
+              ),
+              child: const Text(
+                'SNSテスト実行',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () async {
+                // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
+                try {
+                  const messagedata ="Flutterからのテスト;01234567890;1;080-1111-2222;3";
+                  final result = await methodChannel.invokeMethod('routeToMessageBridge', messagedata);
+                  // 画面下にメッセージを表示
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(result)),
+                  );
+                } catch (e) {
+                  print('テスト呼び出し中にエラー: $e');
+                }
+              },
+            ),
+
           ],
         );
       },
