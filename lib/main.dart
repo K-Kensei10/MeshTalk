@@ -55,7 +55,7 @@ class AppData {
       });
       receivedMessages.value = List.from(currentList); // 安否確認のベルを鳴らす！
       unreadSafetyCheckCount.value++; // 安否確認の未読カウントを増やす
-    } else if (type == '3') {
+    } else if (type == '4') {
       final currentList = officialAnnouncements.value;
       currentList.insert(0, {'text': text, 'time': time});
       officialAnnouncements.value = List.from(currentList); // 自治体連絡のベルを鳴らす！
