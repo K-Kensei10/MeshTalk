@@ -72,6 +72,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("キャンセル")),
+            ElevatedButton(onPressed: _sendMessage, child: const Text("送信")),
                                      const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
 
             ElevatedButton(
