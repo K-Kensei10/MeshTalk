@@ -117,6 +117,10 @@ class _MainPageState extends State<MainPage> {
     const HostAuthPage(),
     const GovernmentHostPage(),
   ];
+  void _resetIfVisible() {
+    // 現在表示中のタブに対応するカウンターを0にする
+    AppData.resetUnreadCount(_selectedIndex);
+  }
 
   @override
   void initState() {
@@ -126,6 +130,17 @@ class _MainPageState extends State<MainPage> {
       _checkAndRequestPermissions();
       AppData.resetUnreadCount(_selectedIndex); 
     });
+    AppData.unreadSnsCount.addListener(_resetIfVisible);
+    AppData.unreadSafetyCheckCount.addListener(_resetIfVisible);
+    AppData.unreadOfficialCount.addListener(_resetIfVisible);
+  }
+
+  @override
+  void dispose() {
+    AppData.unreadSnsCount.removeListener(_resetIfVisible);
+    AppData.unreadSafetyCheckCount.removeListener(_resetIfVisible);
+    AppData.unreadOfficialCount.removeListener(_resetIfVisible);
+    super.dispose();
   }
 
   void _initPlatformListener() {
