@@ -555,7 +555,24 @@ class MainActivity : FlutterActivity() {
         val stringToRelay = "$message;$to_phone_number;$message_type;$from_phone_number;$newTTL" // newTTL を使う
 
         println("転送用データ$stringToRelay")
+    }
+        // メンバ変数（Bluetoothのレシーバー）
+    private lateinit var bluetoothReceiver: BluetoothStateReceiver
+    // ライフサイクル：画面が表示されたとき
+    override fun onStart() {
+        super.onStart()
+        bluetoothReceiver = BluetoothStateReceiver()
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        registerReceiver(bluetoothReceiver, filter)
+    }
 
-        // TODO: ここにBluetoothでデータを送信する関数を呼び出すコードを書く
+    // ライフサイクル：画面が消えたとき
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(bluetoothReceiver)
+    }
+
+    // Flutterとの連携
+    override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
     }
 }
