@@ -100,7 +100,7 @@ class BluetoothLeController(public val activity : Activity) {
   private val scanner: BluetoothLeScanner? = adapter?.bluetoothLeScanner
   private val advertiser: BluetoothLeAdvertiser? = adapter?.bluetoothLeAdvertiser
   private var bluetoothGatt: BluetoothGatt? = null
-  var scanResults = mutableListOf<ScanResult>()
+  private var scanResults = mutableListOf<ScanResult>()
   private lateinit var mScanCallback : ScanCallback
   private lateinit var mAdvertiseCallback : AdvertiseCallback
   private lateinit var mGattServerCallback : BluetoothGattServerCallback
@@ -120,7 +120,9 @@ class BluetoothLeController(public val activity : Activity) {
 
   //================= セントラル（メッセージ受信者） =================
   fun ScanAndConnect(onResult: (Map<String, String>) -> Unit) {
+    var scanCount = 0
     scanResultCallback = onResult
+
     //権限チェック
     checkPermissions(context) { result ->
       if (result != null) {
@@ -133,8 +135,10 @@ class BluetoothLeController(public val activity : Activity) {
       return@checkPermissions
       }
     }
+
     //スキャン結果リセット
     scanResults.clear()
+    //スキャン結果
     if(!isScanning) {
       handler.postDelayed({
         try{
@@ -142,11 +146,17 @@ class BluetoothLeController(public val activity : Activity) {
           isScanning = false
           Log.d("BLE","スキャンストップ")
           if (scanResults.isEmpty()) {
-            Log.d("BLE", "検出されたデバイスはありません")
-            onResult(mapOf(
-              "status" to "DEVICE_NOT_FOUND",
-              "message" to "BluetoothがOFFになっています"
-            ))
+            if (scanCount >= 0 && scanCount < 2) {
+              scanCount ++
+              startBleScan()
+            }else{
+              scanResults.clear()
+              Log.d("BLE", "検出されたデバイスはありません")
+              onResult(mapOf(
+                "status" to "DEVICE_NOT_FOUND",
+                "message" to "デバイスが付近に見つかりませんでした。"
+              ))
+            }
           }else {
             for (result in scanResults) {
               val name = result.scanRecord?.deviceName ?: result.device.name ?: "Unknown"
@@ -170,45 +180,48 @@ class BluetoothLeController(public val activity : Activity) {
         }
       }, SCAN_PERIOD)
       isScanning = true
-
-      //スキャン設定
-      val scanSettings: ScanSettings = ScanSettings.Builder()
-        .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
-        .build()
-
-      val scanFilterList = arrayListOf<ScanFilter>()
-      val scanUuidFilter : ScanFilter = ScanFilter.Builder()
-        .setServiceUuid(ParcelUuid(CONNECT_UUID))
-        .build()
-      scanFilterList.add(scanUuidFilter)
-
-      //コールバック
-      mScanCallback = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int,result:ScanResult) {
-          Log.d("BLE","$result")
-          //前に取得したことがない&&信号強度が強いもののみ
-          if (result.rssi >= -90 && scanResults.none { it.device.address == result.device.address }) {
-            val uuids = result.scanRecord?.serviceUuids
-            if (uuids?.contains(ParcelUuid(CONNECT_UUID)) == true) {
-              Log.d("BLE","$result")
-            }
-            scanResults.add(result)
-          }
-        }
-        override fun onScanFailed(errorCode: Int) {
-          super.onScanFailed(errorCode)
-          Log.d("BLE","スキャンに失敗しました（コード: $errorCode）")
-        }
-      }
-      if (!isScanning || scanner == null) {
-        Log.d("BLE","通信中に予期せぬエラーが発生しました。アプリを再起動してください。")
-        return
-      }
-      scanner.stopScan(mScanCallback)
-      scanner.startScan(scanFilterList,scanSettings,mScanCallback)
+      startBleScan()
     }else{
       Log.d("BLE","スキャンは既に実行されています")
     }
+  }
+
+  //================= デバイススキャン =================
+  fun startBleScan() {
+    //スキャン設定
+    val scanSettings: ScanSettings = ScanSettings.Builder()
+      .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+      .build()
+    val scanFilterList = arrayListOf<ScanFilter>()
+    val scanUuidFilter : ScanFilter = ScanFilter.Builder()
+      .setServiceUuid(ParcelUuid(CONNECT_UUID))
+      .build()
+    scanFilterList.add(scanUuidFilter)
+
+    //コールバック
+    mScanCallback = object : ScanCallback() {
+      override fun onScanResult(callbackType: Int,result:ScanResult) {
+        Log.d("BLE","$result")
+        //前に取得したことがない&&信号強度が強いもののみ
+        if (result.rssi >= -90 && scanResults.none { it.device.address == result.device.address }) {
+          val uuids = result.scanRecord?.serviceUuids
+          if (uuids?.contains(ParcelUuid(CONNECT_UUID)) == true) {
+            Log.d("BLE","$result")
+          }
+          scanResults.add(result)
+        }
+      }
+      override fun onScanFailed(errorCode: Int) {
+        super.onScanFailed(errorCode)
+        Log.d("BLE","スキャンに失敗しました（コード: $errorCode）")
+      }
+    }
+    if (!isScanning || scanner == null) {
+      Log.d("BLE","通信中に予期せぬエラーが発生しました。アプリを再起動してください。")
+      return
+    }
+    scanner.stopScan(mScanCallback)
+    scanner.startScan(scanFilterList,scanSettings,mScanCallback)
   }
 
 

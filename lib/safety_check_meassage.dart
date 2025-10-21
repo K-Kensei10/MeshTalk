@@ -49,7 +49,7 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
     super.dispose();
   }
 
-  //[message,  to_phone_number,  message_type,  from_phone_number,  TTL]
+  //message; to_phone_number; message_type; from_phone_number; TTL
   Future<void> _startSendMessage(
     String message,
     String toPhoneNumber,
