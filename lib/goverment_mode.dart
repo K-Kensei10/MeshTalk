@@ -94,7 +94,7 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
         ],
       ),
       // ★ 修正点: 「ベルの音を聞く担当者 (ValueListenableBuilder)」を配置
-      body: ValueListenableBuilder<List<Map<String, String>>>(
+      body: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: AppData.officialAnnouncements, // このベルを聞く
         builder: (context, messages, child) {
           // ベルが鳴るたびに、この中が最新の`messages`で再描画される

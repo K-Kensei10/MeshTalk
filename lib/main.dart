@@ -10,8 +10,11 @@ import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
 import 'package:badges/badges.dart' as badges;
+import 'databasehelper.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppData.loadInitialData();
   runApp(const MyApp());
 }
 
@@ -20,58 +23,153 @@ void main() {
 // ==========================================================
 class AppData {
   // ★ 修正点: データを「ベル付きの瓶 (ValueNotifier)」で管理
-  static final ValueNotifier<List<Map<String, String>>> officialAnnouncements =
-      ValueNotifier([]);
-  static final ValueNotifier<List<Map<String, String>>> receivedMessages =
-      ValueNotifier([]);
-  static final ValueNotifier<List<Map<String, dynamic>>> snsPosts =
-      ValueNotifier([]);
- 
+static final ValueNotifier<List<Map<String, dynamic>>> officialAnnouncements =
+ ValueNotifier([]);
+ static final ValueNotifier<List<Map<String, dynamic>>> receivedMessages =
+ ValueNotifier([]);
+ static final ValueNotifier<List<Map<String, dynamic>>> snsPosts =
+ ValueNotifier([]);
+
   // 未読カウント用の数字
   static final ValueNotifier<int> unreadSnsCount = ValueNotifier(0);
   static final ValueNotifier<int> unreadSafetyCheckCount = ValueNotifier(0);
   static final ValueNotifier<int> unreadOfficialCount = ValueNotifier(0);
 
-  // ★ 修正点: データが追加されたら「ベルを鳴らす」関数
-  static void addReceivedData(List<dynamic> data) {
-    // キー指定 (data['type']) からインデックス指定 (data[0]) に変更
-    final text = data[0] ?? 'メッセージなし'; // 2番目 (インデックス 1) に message
-    final type = data[1].toString(); // 1番目 (インデックス 0) に type
-    final phone = data[2] ?? "不明"; // 3番目 (インデックス 2) に from
-    final time =
-        "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
 
+ static Future<void> loadInitialData() async {
+   // 1. SNS (Type 1)
+await loadSnsPosts();
+
+ // 2. 安否確認 (Type 2)
+await loadSafetyCheckMessages();
+
+ // 3. 自治体連絡 (Type 4)
+ final officialData = await DatabaseHelper.instance.getMessagesByType('4');
+officialAnnouncements.value = officialData.map((dbRow) {
+ final time = DateTime.parse(dbRow['received_at'] as String);
+ final timeStr = "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+
+ return {'text': dbRow['content'], 'time': timeStr};
+}).toList();
+
+ await _updateAllUnreadCounts();
+ }
+  
+  // ★ 修正点: データが追加されたら「ベルを鳴らす」関数
+  static Future<void> addReceivedData(List<dynamic> data) async {
+
+    final text = data[0] ?? 'メッセージなし';
+    final type = data[1].toString();
+    final phone = data[2] ?? "不明";
+
+    //ListをMapに変換
+    final messageDataMap = {'type': type, 'content': text, 'from': phone};
+
+    //データベースにデータを追加
+    await DatabaseHelper.instance.insertMessage(messageDataMap);
+
+    //データを追加したら、DBから最新データを読み込み直す
     if (type == '1') {
-      final currentList = snsPosts.value;
-      currentList.insert(0, {'text': text, 'timestamp': DateTime.now()});
-      snsPosts.value = List.from(currentList); // SNSのベルを鳴らす！
-      unreadSnsCount.value++; // SNSの未読カウントを増やす
+await loadSnsPosts(); 
+      unreadSnsCount.value = await DatabaseHelper.instance.getUnreadCountByType('1'); // SNSの未読数を更新
     } else if (type == '2') {
-      final currentList = receivedMessages.value;
-      currentList.insert(0, {
-        'subject': '安否確認',
-        'detail': '電話番号$phoneさんから「$text」が届きました',
-        'time': time,
-      });
-      receivedMessages.value = List.from(currentList); // 安否確認のベルを鳴らす！
-      unreadSafetyCheckCount.value++; // 安否確認の未読カウントを増やす
+await loadSafetyCheckMessages(); // 安否確認メッセージを読み込み
+
+      unreadSafetyCheckCount.value = await DatabaseHelper.instance.getUnreadCountByType('2');// 安否確認の未読数を更新
     } else if (type == '4') {
-      final currentList = officialAnnouncements.value;
-      currentList.insert(0, {'text': text, 'time': time});
-      officialAnnouncements.value = List.from(currentList); // 自治体連絡のベルを鳴らす！
-      unreadOfficialCount.value++; // 自治体連絡の未読カウントを増やす
+      final officialData = await DatabaseHelper.instance.getMessagesByType('4');
+      officialAnnouncements.value = officialData.map((dbRow) {
+        final time = DateTime.parse(dbRow['received_at'] as String);
+        final timeStr =
+            "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+        return {'text': dbRow['content'], 'time': timeStr};
+      }).toList();
+      unreadOfficialCount.value = await DatabaseHelper.instance
+          .getUnreadCountByType('4');
     }
   }
 
-  //指定されたインデックスの未読カウントをリセット
-  static void resetUnreadCount(int index) {
+  static Future<void> resetUnreadCount(int index) async {
     if (index == 0) {
-      unreadSnsCount.value = 0;
+      // 1. DBの Type 1 を「既読」に更新
+      await DatabaseHelper.instance.markMessagesAsRead('1');
+      // 2. DBから最新の未読件数を取得し、バッジに反映
+      unreadSnsCount.value = await DatabaseHelper.instance.getUnreadCountByType(
+        '1',
+      );
     } else if (index == 1) {
-      unreadSafetyCheckCount.value = 0;
+      await DatabaseHelper.instance.markMessagesAsRead('2');
+      unreadSafetyCheckCount.value = await DatabaseHelper.instance
+          .getUnreadCountByType('2');
     } else if (index == 2) {
-      unreadOfficialCount.value = 0;
+      await DatabaseHelper.instance.markMessagesAsRead('4');
+      unreadOfficialCount.value = await DatabaseHelper.instance
+          .getUnreadCountByType('4');
     }
+  }
+
+  // 全ての未読件数を更新する関数
+  static Future<void> _updateAllUnreadCounts() async {
+    unreadSnsCount.value = await DatabaseHelper.instance.getUnreadCountByType(
+      '1',
+    );
+    unreadSafetyCheckCount.value = await DatabaseHelper.instance
+        .getUnreadCountByType('2');
+    unreadOfficialCount.value = await DatabaseHelper.instance
+        .getUnreadCountByType('4');
+  }
+  // SNS投稿を読み込む関数
+  static Future<void> loadSnsPosts() async {
+    final snsData = await DatabaseHelper.instance.getMessagesByType('1');
+    
+    const String selfSentFlag = 'SELF_SENT_SNS'; // さっき決めたフラグ
+
+    AppData.snsPosts.value = snsData.map((dbRow) {
+      final timestamp = DateTime.parse(dbRow['received_at'] as String);
+      final sender = dbRow['sender_phone_number'] as String;
+      final content = dbRow['content'] as String;
+      
+      // ★ フラグを見て、自分が投稿したかどうかの Boolean を追加 ★
+      return {
+        'text': content,
+        'timestamp': timestamp,
+        'isSelf': (sender == selfSentFlag), 
+      };
+    }).toList();
+  }
+
+  // 安否確認メッセージを読み込む関数
+  static Future<void> loadSafetyCheckMessages() async {
+    final safetyData = await DatabaseHelper.instance.getMessagesByType('2');
+    
+    // 自分の送信フラグ
+    const String selfSentFlag = 'SELF_SENT_SAFETY_CHECK';
+
+    AppData.receivedMessages.value = safetyData.map((dbRow) {
+      final time = DateTime.parse(dbRow['received_at'] as String);
+      final timeStr = "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+      
+      final sender = dbRow['sender_phone_number'] as String;
+      final content = dbRow['content'] as String;
+
+      if (sender == selfSentFlag) {
+        // 自分が送信したメッセージ
+        return {
+           'subject': '送信済み',
+           'detail': content,
+           'time': timeStr,
+           'isSelf': true,
+         };
+      } else {
+        // 他人から受信したメッセージ
+        return {
+           'subject': '安否確認 (受信)', 
+           'detail': '電話番号 $sender さんから「$content」が届きました',
+           'time': timeStr,
+            'isSelf': false,
+         };
+      }
+    }).toList();
   }
 }
 
@@ -128,7 +226,7 @@ class _MainPageState extends State<MainPage> {
     _initPlatformListener();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndRequestPermissions();
-      AppData.resetUnreadCount(_selectedIndex); 
+      AppData.resetUnreadCount(_selectedIndex);
     });
     AppData.unreadSnsCount.addListener(_resetIfVisible);
     AppData.unreadSafetyCheckCount.addListener(_resetIfVisible);
@@ -161,6 +259,7 @@ class _MainPageState extends State<MainPage> {
     });
     AppData.resetUnreadCount(index); // 選択されたタブの未読カウントをリセット
   }
+
   //バッジ付きアイコンを作成する関数
   Widget _buildIconWithBadge(IconData iconData, ValueNotifier<int> counter) {
     return ValueListenableBuilder<int>(
@@ -178,58 +277,59 @@ class _MainPageState extends State<MainPage> {
       },
     );
   }
-    @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        body: _pages[_selectedIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          //各アイコンにバッジを追加
-          items: [
-            BottomNavigationBarItem(
-              icon: _buildIconWithBadge(
-                Icons.home,
-                AppData.unreadSnsCount,
-              ), // バッジ付きアイコンに変更
-              label: "避難所SNS",
-            ),
-            BottomNavigationBarItem(
-              icon: _buildIconWithBadge(
-                Icons.security,
-                AppData.unreadSafetyCheckCount,
-              ), // バッジ付きアイコンに変更
-              label: "安否確認",
-            ),
-            BottomNavigationBarItem(
-              icon: _buildIconWithBadge(
-                Icons.account_balance,
-                AppData.unreadOfficialCount,
-              ), // バッジ付きアイコンに変更
-              label: "自治体連絡",
-            ),
-          ],
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-        ),
-      );
-    }
-  }
 
-  // ==========================================================
-  //  権限要求 (変更なし)
-  // ==========================================================
-  void _checkAndRequestPermissions() async {
-    final permissions = [
-      Permission.bluetooth,
-      Permission.bluetoothAdvertise,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.location,
-      Permission.notification,
-    ];
-    for (final permission in permissions) {
-      if (await permission.isDenied) {
-        await permission.request();
-      }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        //各アイコンにバッジを追加
+        items: [
+          BottomNavigationBarItem(
+            icon: _buildIconWithBadge(
+              Icons.home,
+              AppData.unreadSnsCount,
+            ), // バッジ付きアイコンに変更
+            label: "避難所SNS",
+          ),
+          BottomNavigationBarItem(
+            icon: _buildIconWithBadge(
+              Icons.security,
+              AppData.unreadSafetyCheckCount,
+            ), // バッジ付きアイコンに変更
+            label: "安否確認",
+          ),
+          BottomNavigationBarItem(
+            icon: _buildIconWithBadge(
+              Icons.account_balance,
+              AppData.unreadOfficialCount,
+            ), // バッジ付きアイコンに変更
+            label: "自治体連絡",
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+      ),
+    );
+  }
+}
+
+// ==========================================================
+//  権限要求 (変更なし)
+// ==========================================================
+void _checkAndRequestPermissions() async {
+  final permissions = [
+    Permission.bluetooth,
+    Permission.bluetoothAdvertise,
+    Permission.bluetoothConnect,
+    Permission.bluetoothScan,
+    Permission.location,
+    Permission.notification,
+  ];
+  for (final permission in permissions) {
+    if (await permission.isDenied) {
+      await permission.request();
     }
   }
+}

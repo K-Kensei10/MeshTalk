@@ -58,7 +58,7 @@ class _GovernmentHostPageState extends State<GovernmentHostPage> {
         backgroundColor: Colors.red[800],
       ),
       // ★ 修正点: 「ベルの音を聞く担当者 (ValueListenableBuilder)」を配置
-      body: ValueListenableBuilder<List<Map<String, String>>>(
+      body: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: AppData.receivedMessages, // 安否確認のベルを聞く
         builder: (context, receivedMessages, child) {
           // ベルが鳴るたびに、この中が最新の`receivedMessages`で再描画される

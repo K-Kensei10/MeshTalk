@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:anslin/main.dart';
+import 'databasehelper.dart';
 
 // ★ 修正点: StatefulWidgetの「設計図」クラスを追加
 class SafetyCheckPage extends StatefulWidget {
@@ -23,7 +24,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final phone = _recipientController.text;
     final message = _messageController.text;
 
@@ -35,13 +36,20 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         'targetPhoneNum': phone,
       });
 
-      final currentList = AppData.receivedMessages.value;
-      currentList.insert(0, {
-        'subject': '送信済み',
-        'detail': '宛先: $phone\n内容: $message',
-        'time': "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
-      });
-      AppData.receivedMessages.value = List.from(currentList);
+      final messageDataMap = {
+        'type': '2',          // 安否確認 (Type 2)
+        
+        // ★★★ [工夫] 送信メッセージは、内容を「事前」に整形する ★★★
+        'content': '宛先: $phone\n内容: $message', 
+        
+        // ★★★ [工夫] 送信元(from)を「送信済みフラグ」として使う ★★★
+        'from': 'SELF_SENT_SAFETY_CHECK', // (自分だとわかる特殊な文字列)
+      };
+
+      // 2. ★ データベース係に「保存」を依頼
+      await DatabaseHelper.instance.insertMessage(messageDataMap);
+
+      await AppData.loadSafetyCheckMessages();
 
       _recipientController.clear();
       _messageController.clear();
@@ -133,7 +141,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     return Scaffold(
       appBar: AppBar(title: const Text("安否確認")),
       // ★ 修正点: 「ベルの音を聞く担当者 (ValueListenableBuilder)」を配置
-      body: ValueListenableBuilder<List<Map<String, String>>>(
+      body: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: AppData.receivedMessages, // このベルを聞く
         builder: (context, messages, child) {
           // ベルが鳴るたびに、この中が最新の`messages`で再描画される
@@ -152,12 +160,15 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
                           final msg = messages[index];
+                          final bool isSelf = msg['isSelf'] as bool? ?? false; // (送信メッセージかどうかのフラグ)
                           return Card(
+                            color: isSelf ? Colors.blue[50] : Colors.white,
                             margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                             child: ListTile(
-                              title: Text(msg['subject'] ?? ''),
-                              subtitle: Text(msg['detail'] ?? ''),
-                              trailing: Text(msg['time'] ?? ''),
+
+                              title: Text(msg['subject'] as String? ?? ''),
+                              subtitle: Text(msg['detail'] as String? ?? ''),
+                              trailing: Text(msg['time'] as String? ?? ''),
                             ),
                           );
                         },
