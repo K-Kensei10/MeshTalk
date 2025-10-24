@@ -37,11 +37,10 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
       });
 
       final messageDataMap = {
-        'type': '2',          // 安否確認 (Type 2)
-        
+        'type': '2', // 安否確認 (Type 2)
         // ★★★ [工夫] 送信メッセージは、内容を「事前」に整形する ★★★
-        'content': '宛先: $phone\n内容: $message', 
-        
+        'content': '宛先: $phone\n内容: $message',
+
         // ★★★ [工夫] 送信元(from)を「送信済みフラグ」として使う ★★★
         'from': 'SELF_SENT_SAFETY_CHECK', // (自分だとわかる特殊な文字列)
       };
@@ -55,11 +54,15 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
       _messageController.clear();
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("メッセージを送信しました")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("メッセージを送信しました")));
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("宛先とメッセージを入力してください")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("宛先とメッセージを入力してください")));
       }
     }
   }
@@ -73,15 +76,31 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: _recipientController, decoration: const InputDecoration(labelText: "宛先（電話番号）", border: OutlineInputBorder())),
+              TextField(
+                controller: _recipientController,
+                decoration: const InputDecoration(
+                  labelText: "宛先（電話番号）",
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 16),
-              TextField(controller: _messageController, decoration: const InputDecoration(labelText: "メッセージ本文", border: OutlineInputBorder()), maxLength: 50),
+              TextField(
+                controller: _messageController,
+                decoration: const InputDecoration(
+                  labelText: "メッセージ本文",
+                  border: OutlineInputBorder(),
+                ),
+                maxLength: 50,
+              ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("キャンセル")),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("キャンセル"),
+            ),
             ElevatedButton(onPressed: _sendMessage, child: const Text("送信")),
-                                     const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
+            const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
 
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -94,18 +113,22 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
               onPressed: () async {
                 // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
                 try {
-                  const messagedata ="Flutterからのテスト;01234567890;2;080-1111-2222;3";
-                  final result = await methodChannel.invokeMethod('routeToMessageBridge', messagedata);
-                  // 画面下にメッセージを表示
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(result)),
+                  const messagedata =
+                      "Flutterからのテスト;01234567890;2;080-1111-2222;3;202501010000";
+                  final result = await methodChannel.invokeMethod(
+                    'routeToMessageBridge',
+                    messagedata,
                   );
+                  // 画面下にメッセージを表示
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(result)));
                 } catch (e) {
                   print('テスト呼び出し中にエラー: $e');
                 }
               },
             ),
-                         const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
+            const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
 
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -118,18 +141,21 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
               onPressed: () async {
                 // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
                 try {
-                  const messagedata ="Flutterからのテスト;01234567890;1;080-1111-2222;3";
-                  final result = await methodChannel.invokeMethod('routeToMessageBridge', messagedata);
-                  // 画面下にメッセージを表示
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(result)),
+                  const messagedata =
+                      "Flutterからのテスト;01234567890;1;080-1111-2222;3;202501010000";
+                  final result = await methodChannel.invokeMethod(
+                    'routeToMessageBridge',
+                    messagedata,
                   );
+                  // 画面下にメッセージを表示
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(result)));
                 } catch (e) {
                   print('テスト呼び出し中にエラー: $e');
                 }
               },
             ),
-
           ],
         );
       },
@@ -149,7 +175,10 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
             children: [
               const Padding(
                 padding: EdgeInsets.all(16.0),
-                child: Text("受信した安否確認メッセージ", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                child: Text(
+                  "受信した安否確認メッセージ",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ),
               const Divider(),
               Expanded(
@@ -160,14 +189,36 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
                           final msg = messages[index];
-                          final bool isSelf = msg['isSelf'] as bool? ?? false; // (送信メッセージかどうかのフラグ)
-                          return Card(
-                            color: isSelf ? Colors.blue[50] : Colors.white,
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            child: ListTile(
+                          final bool isSelf =
+                              msg['isSelf'] as bool? ??
+                              false; // (送信メッセージかどうかのフラグ)
 
+                              final transmissionTime = msg['transmissionTime'] as String?;
+                              
+                          return Card(
+                            color: isSelf
+                                ? const Color.fromARGB(255, 151, 255, 159)
+                                : Colors.white,
+                            margin: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 8,
+                            ),
+                            child: ListTile(
                               title: Text(msg['subject'] as String? ?? ''),
-                              subtitle: Text(msg['detail'] as String? ?? ''),
+                              
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(msg['detail'] as String? ?? ''),
+                                  if (transmissionTime != null && transmissionTime.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Text(
+                                      "送信日時: $transmissionTime",style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.bold),
+                                      ),
+                                      ),
+                                      ],
+                                      ),
                               trailing: Text(msg['time'] as String? ?? ''),
                             ),
                           );

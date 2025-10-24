@@ -84,7 +84,7 @@ class _ShelterSNSPageState extends State<ShelterSNSPage> {
           // ベルが鳴るたびに、この中が最新の`allPosts`で再描画される
           final recentPosts = allPosts.where((post) {
             final postTime = post['timestamp'] as DateTime;
-            return DateTime.now().difference(postTime).inHours < 3;
+            return DateTime.now().difference(postTime).inHours < 8; // 過去8時間以内の投稿のみ表示
           }).toList();
 
 return recentPosts.isEmpty
@@ -100,7 +100,7 @@ return recentPosts.isEmpty
 
                     return Card(
                       // 自分の投稿なら色を変える
-                      color: isSelf ? Colors.blue[50] : Colors.white, 
+                      color: isSelf ? const Color.fromARGB(255, 151, 255, 159) : Colors.white, 
                       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -114,7 +114,7 @@ return recentPosts.isEmpty
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue[800],
+                                  color: const Color.fromARGB(255, 255, 90, 90),
                                 ),
                               ),
                             if (isSelf) const SizedBox(height: 4),
@@ -123,7 +123,7 @@ return recentPosts.isEmpty
                             const SizedBox(height: 8),
                             Text(
                               "投稿時間: ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}",
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(fontSize: 12, color: Color.fromARGB(255, 128, 128, 128)),
                             ),
                           ],
                         ),

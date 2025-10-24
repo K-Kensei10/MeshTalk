@@ -27,8 +27,9 @@ import android.content.Context;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import androidx.core.content.ContextCompat;
-
-
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import android.util.Log
 
 object MessageBridge {
@@ -443,7 +444,7 @@ class MainActivity : FlutterActivity() {
              // cleanedStringの定義を追加 (元コードになかったため追加)
             val cleanedString = receivedString.removeSurrounding("[", "]")
             val parts = cleanedString.split(";")
-            if (parts.size < 5) {
+            if (parts.size < 6) {
                 println("❗️ データの形式が不正です: $receivedString")
                 return
             }else {
@@ -454,20 +455,19 @@ class MainActivity : FlutterActivity() {
             val to_phone_number = parts[1]
             val message_type = parts[2]
             val from_phone_number = parts[3]
-            val TTL = parts[4].toInt() // 型変換エラーが起こる可能性あり
+            val TTL = parts[4].toInt()
+            val timestampString = parts[5]
 
-            println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL")
+            println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL, 日時:$timestampString, message:$message")
 
             val dataForFlutter = listOf(
                 message,
                 message_type,
-                from_phone_number // Flutter側はStringのListを期待している
-                 // TTL (Int) を含めると displayMessageOnFlutter で型エラーになる
+                from_phone_number,
+                timestampString
             )
             
             val MY_PHONE_NUMBER = "01234567890" // 例として固定値を使用
-
-            // println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL") // 重複していたためコメントアウト (コメント削除禁止のためコメントアウト)
 
             when (message_type) {
                 "1" -> {// SNS
