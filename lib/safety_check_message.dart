@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:anslin/main.dart';
 import 'databasehelper.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:anslin/phone_number_request.dart';
 
 // ★ 修正点: StatefulWidgetの「設計図」クラスを追加
 class SafetyCheckPage extends StatefulWidget {
@@ -225,8 +227,32 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
 
   @override
   Widget build(BuildContext context) {
+    final Color appBarTextColor = Theme.of(context).appBarTheme.foregroundColor ??
+        (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("安否確認")),
+      appBar: AppBar(
+        title: const Text("安否確認"),
+      actions: [
+          Tooltip(
+            message: '電話番号の変更',
+            child: TextButton.icon(
+              icon: Icon(
+                Icons.edit_note, 
+                color: appBarTextColor, 
+              ), 
+              label: Text(
+                '番号変更',
+                style: TextStyle(color: appBarTextColor), 
+              ),
+            
+            // 確認ダイアログ
+            onPressed: _showChangePhoneNumberDialog,
+            )
+      
+      ),
+      ],
+      ),
       // ★ 修正点: 「ベルの音を聞く担当者 (ValueListenableBuilder)」を配置
       body: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: AppData.receivedMessages, // このベルを聞く
@@ -259,44 +285,40 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                       if (transmissionTimeStr != null && transmissionTimeStr.isNotEmpty) {
                         try {
                           
-                          // (1) 前後の空白を掃除
+                          // 前後の空白を取り除く
                           final cleanTimeStr = transmissionTimeStr.trim();
 
-                          // (2) 12文字以上あることを確認
+                          //12文字以上あることを確認
                           if (cleanTimeStr.length >= 12) {
                             
-                            // (3) 先頭12文字を切り取る
+                            //先頭12文字を切り取る
                             final finalTimeStr = cleanTimeStr.substring(0, 12);
                             
-                            // (4) ★ [修正] intl.parse をやめて、RegExp で分解する
+                            //正規表現で各パーツを抽出
                             final regex = RegExp(r'^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$');
                             final match = regex.firstMatch(finalTimeStr);
 
                             if (match != null) {
-                              // (5) 分解したパーツを数字に変換
+                              //分解したパーツを変換
                               final year = int.parse(match.group(1)!);
                               final month = int.parse(match.group(2)!);
                               final day = int.parse(match.group(3)!);
                               final hour = int.parse(match.group(4)!);
                               final minute = int.parse(match.group(5)!);
                               
-                              // (6) DateTime オブジェクトを組み直す
+                              //オブジェクトを組み直す
                               final dt = DateTime(year, month, day, hour, minute);
                               
-                              // (7) intl は「表示」にだけ使う
                               formattedSendTime = "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(dt)}";
                             
                             } else {
-                              // (RegExp が 12桁の数字 とマッチしなかった)
                               formattedSendTime = "送信日時不明 (形式エラー)";
                             }
                           } else {
-                            // (12文字ない)
                             formattedSendTime = "送信日時不明 (文字数エラー)";
                           }
                         
                         } catch (e) {
-                          // (DateTime の組み立てに失敗した、など)
                           formattedSendTime = "送信日時不明 (Exception)"; 
                           print("Error parsing time (manual): $e");
                         }
@@ -351,7 +373,62 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         onPressed: _showMessageModal,
         tooltip: '安否確認メッセージ送信',
         child: const Icon(Icons.add),
-      ),
+      ), 
+    );
+  }
+  Future<void> _showChangePhoneNumberDialog() async {
+    
+    // ダイアログを表示する
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // (外側をタップしても閉じないようにする)
+      builder: (BuildContext dialogContext) {
+        
+        return AlertDialog(
+          title: const Text('電話番号の変更'),
+          content: const Text(
+            '本当に変更しますか？\n再度、電話番号の入力が必要になります。',
+          ),
+          actions: <Widget>[
+            
+            // 「いいえ」ボタン
+            TextButton(
+              child: const Text('いいえ'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // ダイアログだけ閉じる
+              },
+            ),
+
+            // 「はい」ボタン
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red, 
+              ),
+              child: const Text('はい、変更します'),
+              onPressed: () async {
+                
+                // 保存された電話番号を「削除」
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('my_phone_number');
+                
+                print("✅ 電話番号を削除しました。入力画面に戻ります。");
+
+                //このダイアログを閉じる
+                if (!mounted) return;
+                Navigator.of(dialogContext).pop(); 
+
+                //アプリの「全ページ」を破棄して、電話番号入力ページに飛ばす
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const PhoneInputPage(),
+                  ),
+                  (Route<dynamic> route) => false, 
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

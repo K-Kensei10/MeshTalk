@@ -31,6 +31,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import android.util.Log
+import android.content.IntentFilter
 
 object MessageBridge {
 
@@ -457,8 +458,9 @@ class MainActivity : FlutterActivity() {
             println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL, 日時:$timestampString, message:$message")
 
             val dataForFlutter = listOf(message,message_type,from_phone_number,timestampString)
-            
-            val MY_PHONE_NUMBER = "01234567890" // 例として固定値を使用
+
+            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val MY_PHONE_NUMBER = prefs.getString("flutter.my_phone_number", null)
 
             when (message_type) {
                 "1" -> {// SNS
@@ -572,4 +574,20 @@ class MainActivity : FlutterActivity() {
              }
         }
     }
+            // メンバ変数（Bluetoothのレシーバー）
+    private lateinit var bluetoothReceiver: BluetoothStateReceiver
+    // ライフサイクル：画面が表示されたとき
+    override fun onStart() {
+        super.onStart()
+        bluetoothReceiver = BluetoothStateReceiver()
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        registerReceiver(bluetoothReceiver, filter)
+    }
+
+    // ライフサイクル：画面が消えたとき
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(bluetoothReceiver)
+    }
+
 }

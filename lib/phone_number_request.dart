@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:anslin/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// ★ 修正点: StatefulWidgetの「設計図」クラスを追加
+
 class PhoneInputPage extends StatefulWidget {
   const PhoneInputPage({super.key});
 
@@ -9,7 +10,6 @@ class PhoneInputPage extends StatefulWidget {
   State<PhoneInputPage> createState() => _PhoneInputPageState();
 }
 
-// ★ 修正点: クラス名をアンダースコア付きに変更
 class _PhoneInputPageState extends State<PhoneInputPage> {
   final TextEditingController _phoneController = TextEditingController();
   String? _errorText;
@@ -20,23 +20,93 @@ class _PhoneInputPageState extends State<PhoneInputPage> {
     super.dispose();
   }
 
-  void _validateAndNavigate() {
+  // チェック＆ダイアログ表示
+  void _validateAndShowDialog() { 
+    
     final phoneNumber = _phoneController.text.replaceAll('-', '');
+
+    // 電話番号のフォーマットをチェック
     if (phoneNumber.length >= 10 &&
         phoneNumber.length <= 11 &&
         int.tryParse(phoneNumber) != null) {
-      // mountedチェックを追加して安全性を高める
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainPage()),
-      );
+      
+      // 「確認ダイアログ」を呼ぶ
+      setState(() {
+        _errorText = null; 
+      });
+      _showConfirmationDialog(phoneNumber); 
+
     } else {
       setState(() {
         _errorText = "有効な電話番号を入力してください（10-11桁）";
       });
     }
   }
+
+  //確認ダイアログ
+  Future<void> _showConfirmationDialog(String phoneNumber) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, 
+      builder: (BuildContext dialogContext) {
+        
+        return AlertDialog(
+          title: const Text('確認'),
+          content: Text(
+            '電話番号「$phoneNumber」で登録します。\nよろしいですか？',
+          ),
+          actions: <Widget>[
+            
+            // 「キャンセル」ボタン
+            TextButton(
+              child: const Text('キャンセル'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); 
+              },
+            ),
+
+            // 「OK」ボタン
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+
+                Navigator.of(dialogContext).pop();
+                // 保存関数を呼ぶ
+                _saveAndNavigate(phoneNumber); 
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  // 保存＆画面遷移
+  Future<void> _saveAndNavigate(String phoneNumber) async { 
+    try {
+      // 1. 保存する
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('my_phone_number', phoneNumber);
+      
+      print("電話番号 $phoneNumber を保存しました");
+
+      // 2. MainPage に移動する
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MainPage()),
+        );
+      }
+    } catch (e) {
+      print("❌ 電話番号の保存に失敗: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("エラー: 電話番号を保存できませんでした")),
+        );
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -64,10 +134,12 @@ class _PhoneInputPageState extends State<PhoneInputPage> {
               ),
             ),
             const SizedBox(height: 20),
+            
             ElevatedButton(
-              onPressed: _validateAndNavigate,
+              onPressed: _validateAndShowDialog,
               child: const Text("ログイン"),
             ),
+
           ],
         ),
       ),

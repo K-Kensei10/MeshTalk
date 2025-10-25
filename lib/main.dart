@@ -13,11 +13,14 @@ import 'package:anslin/goverment_mode.dart';
 import 'package:badges/badges.dart' as badges;
 import 'databasehelper.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();// Flutterの初期化を待つ
+  final prefs = await SharedPreferences.getInstance();// SharedPreferencesのインスタンスを取得
+  final String? myPhoneNumber = prefs.getString('my_phone_number');// 保存された電話番号を取得
   await AppData.loadInitialData();
-  runApp(const MyApp());
+  runApp(MyApp(myPhoneNumber: myPhoneNumber));
 }
 
 // ==========================================================
@@ -227,10 +230,13 @@ class AppData {
 //  アプリ本体 (変更なし)
 // ==========================================================
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String? myPhoneNumber; 
+  
+  const MyApp({super.key, this.myPhoneNumber}); // コンストラクタに電話番号を追加
 
   @override
   Widget build(BuildContext context) {
+    final bool hasPhoneNumber = myPhoneNumber?.isNotEmpty ?? false;
     return MaterialApp(
       title: 'ANSLIN',
       theme: ThemeData(
@@ -238,7 +244,9 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Noto Sans JP',
         useMaterial3: true,
       ),
-      home: const PhoneInputPage(),
+      home: hasPhoneNumber
+          ? const MainPage() // ★ 電話番号が「ある」 -> メインページ
+          : const PhoneInputPage(), // ★ 電話番号が「ない」 -> 入力ページ
     );
   }
 }
