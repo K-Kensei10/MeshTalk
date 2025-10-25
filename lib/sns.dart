@@ -26,14 +26,6 @@ class _ShelterSNSPageState extends State<ShelterSNSPage> {
     await DatabaseHelper.instance.insertMessage(messageDataMap);
     // SNS投稿を読み込み
     await AppData.loadSnsPosts();
-
-    // ★ 修正点: ベルを鳴らす処理をここに集約
-    final currentList = AppData.snsPosts.value;
-    currentList.insert(0, {
-      "text": postText,
-      "timestamp": DateTime.now(),
-    });
-    AppData.snsPosts.value = List.from(currentList);
   }
 
   void _showPostModal() {

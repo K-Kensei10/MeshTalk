@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:anslin/main.dart';
 import 'package:anslin/host_auth.dart';
-// import 'package:anslin/snack_bar.dart'; // snack_bar.dart が存在しないためコメントアウト
+import 'databasehelper.dart';
 
 // ★ 修正点: StatefulWidgetの「設計図」クラスを追加
 class LocalGovernmentPage extends StatefulWidget {
@@ -12,25 +12,27 @@ class LocalGovernmentPage extends StatefulWidget {
   State<LocalGovernmentPage> createState() => _LocalGovernmentPageState();
 }
 
-// ★ 修正点: クラス名をアンダースコア付きに変更
+//クラス名をアンダースコア付きに変更
 class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
 
-  void _sendMessage(String subject, String detail) {
+  Future<void> _sendMessage(String subject, String detail) async { 
     methodChannel.invokeMethod<String>('sendMessage', {
       'message': detail,
-      'phoneNum': "000000000000", // 仮の自分の番号
+      'phoneNum': "000000000000", 
       'messageType': subject,
-      'targetPhoneNum': "09000000000", // 仮の自治体番号
+      'targetPhoneNum': "09000000000", 
     });
 
-    // ★ 修正点: ベルを鳴らす処理
-    final currentList = AppData.officialAnnouncements.value;
-    currentList.insert(0, {
-      "text": "【送信済み】件名: $subject\n詳細: $detail",
-      "time": "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
-    });
-    AppData.officialAnnouncements.value = List.from(currentList);
+    final messageDataMap = {
+      'type': '3',
+      'content': "【送信済み】件名: $subject\n詳細: $detail",
+      'from': 'SELF_SENT_GOV_MESSAGE', 
+    };
+
+    await DatabaseHelper.instance.insertMessage(messageDataMap);
+    
+    await AppData.loadOfficialMessages(); 
 
     if (mounted) {
       Navigator.of(context).pop();
@@ -64,10 +66,12 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("キャンセル")),
-            ElevatedButton(
-              onPressed: () {
+          ElevatedButton(
+              onPressed: () async { 
                 if (selectedSubject != null && detailController.text.isNotEmpty) {
-                  _sendMessage(selectedSubject!, detailController.text);
+                  
+                  await _sendMessage(selectedSubject!, detailController.text);
+                
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("件名と詳細を入力してください")));
                 }
@@ -111,29 +115,45 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
                     : ListView.builder(
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
-                          final msg = messages[index];
-                          return Card(
-                            color: Colors.lightBlue[50],
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
+                        final msg = messages[index];
+                        
+                        // ★ [追加] isSelf フラグを受け取る
+                        final bool isSelf = msg['isSelf'] as bool? ?? false;
+                        
+                        return Card(
+                          // ★ [修正] 自分の投稿は色を変える
+                          color: isSelf
+                              ? const Color.fromARGB(255, 151, 255, 159) // (自分: 緑)
+                              : Colors.lightBlue[50], // (他人: 青)
+                          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  
+                                  // ★ [修正] isSelf で表示を切り替え
+                                  if (isSelf) ...[
+                                    const Icon(Icons.send, color: Colors.green),
+                                    const SizedBox(width: 8),
+                                    const Text("送信済み", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                                  ] else ...[
                                     const Icon(Icons.info, color: Colors.blue),
                                     const SizedBox(width: 8),
                                     const Text("公式情報", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                                    const Spacer(),
-                                    Text(msg["time"] ?? "", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                  ]),
-                                  const SizedBox(height: 8),
-                                  Text(msg["text"] ?? ""),
-                                ],
-                              ),
+                                  ],
+                                  
+                                  const Spacer(),
+                                  Text(msg["time"] ?? "", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                                ]),
+                                const SizedBox(height: 8),
+                                Text(msg["text"] ?? ""),
+                              ],
                             ),
-                          );
-                        },
+                          ),
+                        );
+                      },
                       ),
               ),
             ],

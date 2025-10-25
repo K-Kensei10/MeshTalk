@@ -420,7 +420,6 @@ class MainActivity : FlutterActivity() {
                     val data = call.arguments as? String
                     if (data != null) {
                         MessageBridge.onMessageReceived(data)
-                        result.success("テストデータ [$data] を受信しました。")
                     } else {
                         result.error("DATA_NULL", "データがありません。(または文字列ではありません)", null)
                     }
@@ -460,12 +459,7 @@ class MainActivity : FlutterActivity() {
 
             println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL, 日時:$timestampString, message:$message")
 
-            val dataForFlutter = listOf(
-                message,
-                message_type,
-                from_phone_number,
-                timestampString
-            )
+            val dataForFlutter = listOf(message,message_type,from_phone_number,timestampString)
             
             val MY_PHONE_NUMBER = "01234567890" // 例として固定値を使用
 

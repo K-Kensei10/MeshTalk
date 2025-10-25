@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -57,7 +58,7 @@ class AppData {
     final text = data[0] ?? 'メッセージなし';
     final type = data[1].toString();
     final phone = data[2] ?? "不明";
-    final transmissionTimeStr = data.length > 5 ? data[5] as String? ?? "" : "";
+    final transmissionTimeStr = data.length > 3 ? data[3] as String? ?? "" : "";
 
     //ListをMapに変換
     final messageDataMap = {'type': type, 'content': text, 'from': phone};
@@ -116,14 +117,14 @@ class AppData {
   static Future<void> loadSnsPosts() async {
     final snsData = await DatabaseHelper.instance.getMessagesByType('1');
 
-    const String selfSentFlag = 'SELF_SENT_SNS'; // さっき決めたフラグ
+    const String selfSentFlag = 'SELF_SENT_SNS'; 
 
     AppData.snsPosts.value = snsData.map((dbRow) {
       final timestamp = DateTime.parse(dbRow['received_at'] as String);
       final sender = dbRow['sender_phone_number'] as String;
       final content = dbRow['content'] as String;
 
-      // ★ フラグを見て、自分が投稿したかどうかの Boolean を追加 ★
+      // フラグを見て、自分が投稿したかどうかの Boolean 
       return {
         'text': content,
         'timestamp': timestamp,
@@ -140,45 +141,36 @@ class AppData {
     const String selfSentFlag = 'SELF_SENT_SAFETY_CHECK';
 
     AppData.receivedMessages.value = safetyData.map((dbRow) {
-      final time = DateTime.parse(dbRow['received_at'] as String);
 
-      final transmissionTimeStr = dbRow['transmission_time'] as String?;
+      final time = DateTime.parse(dbRow['received_at'] as String);// 受信時間
 
-      String displayTime; // UIに表示する最終的な時間
+      final transmissionTimeStr = dbRow['transmission_time'] as String?;// 送信時間 (他人から受信した場合にのみ存在)
 
-      if (transmissionTimeStr != null && transmissionTimeStr.isNotEmpty) {
-        //「送信時間」がある場合 (他人から受信した)
-        try {
-          // "yyyyMMddHHmm" 形式の12桁の数字を DateTime オブジェクトに変換
-          final dt = DateFormat("yyyyMMddHHmm").parse(transmissionTimeStr);
-          // "M/d HH:mm" 形式 (例: "1/1 00:00") に変換
-          displayTime = "送信: ${DateFormat("M/d HH:mm").format(dt)}";
-        } catch (e) {
-          displayTime = "受信: ${DateFormat("M/d HH:mm").format(time)}";
-        }
-      } else {
-        // (B) 「送信時間」がない場合 (自分が送信した)
-        displayTime = "受信: ${DateFormat("M/d HH:mm").format(time)}";
-      }
 
       final sender = dbRow['sender_phone_number'] as String;
       final content = dbRow['content'] as String;
 
       if (sender == selfSentFlag) {
+
+        final timeStr = "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(time)}"; //自分が送ったメッセージの送信日時
+
         // 自分が送信したメッセージ
         return {
           'subject': '送信済み',
           'detail': content,
-          'time': displayTime,
+          'time': timeStr,
           'isSelf': true,
           'transmissionTime': null,
         };
       } else {
         // 他人から受信したメッセージ
+
+        final timeStr = "受信日時: ${DateFormat("yyyy/M/d HH:mm").format(time)}"; //受信日時
+        
         return {
           'subject': '安否確認 (受信)',
           'detail': '電話番号 $sender さんから「$content」が届きました',
-          'time': displayTime,
+          'time': timeStr,
           'isSelf': false,
           'transmissionTime': transmissionTimeStr,
         };
@@ -188,18 +180,46 @@ class AppData {
 
   // 自治体連絡メッセージを読み込む関数
   static Future<void> loadOfficialMessages() async {
-    final officialData = await DatabaseHelper.instance.getMessagesByType('4');
-    AppData.officialAnnouncements.value = officialData.map((dbRow) {
+    
+    // 1. Type 3 (自分が送信) をDBから取得
+    final type3Data = await DatabaseHelper.instance.getMessagesByType('3');
+    // 2. Type 4 (自治体から受信) をDBから取得
+    final type4Data = await DatabaseHelper.instance.getMessagesByType('4');
+
+    final List<Map<String, dynamic>> allMessages = [];
+
+    // Type 3 (自分が送信) の処理
+    for (final dbRow in type3Data) {
       final time = DateTime.parse(dbRow['received_at'] as String);
-      final timeStr =
-          "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
-      final content = dbRow['content'] as String;
-      return {
-        'text': content,
+      final timeStr = "送信: ${DateFormat("yyyy/M/d HH:mm").format(time)}";
+      allMessages.add({
+        'text': dbRow['content'] as String,
         'time': timeStr,
-        'isSelf': false, // (「自分フラグ」はとりあえず false にしておく)
-      };
-    }).toList();
+        'isSelf': true, // ★ Type 3 は「自分」
+        'received_at_raw': time, 
+      });
+    }
+
+    // Type 4 (自治体から受信) の処理
+    for (final dbRow in type4Data) {
+      final time = DateTime.parse(dbRow['received_at'] as String);
+      final timeStr = "受信: ${DateFormat("yyyy/M/d HH:mm").format(time)}";
+      allMessages.add({
+        'text': dbRow['content'] as String,
+        'time': timeStr,
+        'isSelf': false, 
+        'received_at_raw': time, 
+      });
+    }
+
+    allMessages.sort((a, b) {
+      final aTime = a['received_at_raw'] as DateTime;
+      final bTime = b['received_at_raw'] as DateTime;
+      return bTime.compareTo(aTime); // 新しい順
+    });
+
+    // 5. ベルを鳴らす
+    AppData.officialAnnouncements.value = allMessages;
   }
 }
 
@@ -279,14 +299,19 @@ class _MainPageState extends State<MainPage> {
 
         await AppData.addReceivedData(data, _selectedIndex);
 
-        // 表示中のタブはデータ受信時に更新
         final type = data[1].toString();
+        
         if (type == '1' && _selectedIndex == 0) {
           await AppData.loadSnsPosts();
+          await AppData.resetUnreadCount(0); 
+          
         } else if (type == '2' && _selectedIndex == 1) {
           await AppData.loadSafetyCheckMessages();
-        } else if (type == '4' && _selectedIndex == 2) {
+          await AppData.resetUnreadCount(1);
+          
+        } else if (type == '4' && _selectedIndex == 2) { 
           await AppData.loadOfficialMessages();
+          await AppData.resetUnreadCount(2);
         }
       }
     });
