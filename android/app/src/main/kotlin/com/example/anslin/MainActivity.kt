@@ -433,11 +433,8 @@ class MainActivity : FlutterActivity() {
                 message_separate(receivedData)
             }
         }
-    } // <- configureFlutterEngine の閉じカッコ }
-
-    //================= メッセージ処理 =================
-    // configureFlutterEngineの外に移動
-    private fun message_separate(receivedString: String) {
+    } 
+        private fun message_separate(receivedString: String) {
         println("▶データ処理を開始します...")
         try {
              // cleanedStringの定義を追加 (元コードになかったため追加)
@@ -471,7 +468,7 @@ class MainActivity : FlutterActivity() {
 
                     if (TTL > 0) {
                         println("TTLが残っているため、他の端末へ転送します。")
-                        relayMessage(message,to_phone_number,message_type,from_phone_number,TTL)
+                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
                     }
                 }
 
@@ -486,7 +483,7 @@ class MainActivity : FlutterActivity() {
                     } else {
                         println("  -> 宛先が違うため、転送のみ行います。")
                         if (TTL > 0){
-                            relayMessage(message,to_phone_number,message_type,from_phone_number,TTL)
+                            relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
                             println("  -> TTLが残っているため、他の端末へ転送します。")
                         }
                     }
@@ -497,7 +494,7 @@ class MainActivity : FlutterActivity() {
                     println("[処理]Type 3: 転送処理を行います。")
                     //自治体端末である場合、Flutterを呼び出して表示させるコードをここに追加
                     if (TTL > 0){
-                        relayMessage(message,to_phone_number,message_type,from_phone_number,TTL)
+                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
                         println("  -> TTLが残っているため、他の端末へ転送します。")
                     }
                 }
@@ -509,7 +506,7 @@ class MainActivity : FlutterActivity() {
                     displayMessageOnFlutter(dataForFlutter)
 
                     if (TTL > 0){
-                        relayMessage(message,to_phone_number,message_type,from_phone_number,TTL)
+                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
                         println("  -> TTLが残っているため、他の端末へ転送します。")
                     }
                 }
@@ -525,7 +522,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    // configureFlutterEngineの外に移動
+
     private fun displayMessageOnFlutter(dataList: List<String>) {
         println("Flutterにメッセージ表示を依頼します...")
         val dataForFlutter = dataList
@@ -537,19 +534,42 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
-    // configureFlutterEngineの外に移動
-    private fun relayMessage(message: String, to_phone_number: String, message_type: String, from_phone_number: String, TTL: Int) {
 
-        println("▶転送処理を開始します...")
-        println("旧$TTL")
-        // 現在のTTLの値を取得し、そこから1を引く
-        val newTTL = TTL- 1 // 新しい変数 newTTL を使う
-        println("新$newTTL") // newTTL を表示
+    private fun relayMessage(
+        message: String,
+        to_phone_number: String,
+        message_type: String,
+        from_phone_number: String,
+        TTL: Int,
+        timestampString: String
+    ) {
+        println("▶中継DBへの保存処理を開始します...")
+        
+        val newTTL = TTL - 1
+        if (newTTL > 0) {
+            println(" -> TTLを1減らしました。新しいTTL: $newTTL")
+        } else {
+            println(" -> TTLが0になったため、中継は行いません。")
+            return
+        }
+        val relayDataMap = mapOf(
+            "content" to message,
+            "from" to from_phone_number,
+            "type" to message_type,
+            "target" to to_phone_number,
+            "transmission_time" to timestampString,
+            "ttl" to newTTL 
+        )
 
-        val stringToRelay = "$message;$to_phone_number;$message_type;$from_phone_number;$newTTL" // newTTL を使う
+        println("Dartに中継DBへの保存を依頼: $relayDataMap")
 
-        println("転送用データ$stringToRelay")
-
-        // TODO: ここにBluetoothでデータを送信する関数を呼び出すコードを書く
+        runOnUiThread {
+             if (::channel.isInitialized) {
+                // dart側の 'saveRelayMessage' メソッドを呼び出す
+                channel.invokeMethod("saveRelayMessage", relayDataMap)
+             } else {
+                println("❗️ MethodChannelが初期化されていません。")
+             }
+        }
     }
 }

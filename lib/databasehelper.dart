@@ -26,18 +26,31 @@ class DatabaseHelper {
   }
 
   // "Database" は sqflite のもの
-Future<void> _createDB(Database db, int version) async {
+  Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        message_type TEXT NOT NULL, 
+        message_type TEXT NOT NULL,
         content TEXT NOT NULL,
         sender_phone_number TEXT NOT NULL,
-        received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+        received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         transmission_time TEXT NULL,
-        is_read INTEGER DEFAULT 0 
+        is_read INTEGER DEFAULT 0
       )
-    ''');
+    '''); //UI表示用テーブル-自動採番ID-メッセージタイプ-メッセージ本文-送り主の電話番号-受信時間-送信時間-既読フラグ
+
+    await db.execute('''
+      CREATE TABLE relay_messages (                             
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      relay_content TEXT NOT NULL,
+      relay_from TEXT NOT NULL,
+      relay_type TEXT NOT NULL, 
+      relay_target TEXT NOT NULL,
+      relay_transmission_time TEXT NULL,
+      relay_ttl INTEGER NOT NULL,
+      relay_received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');//中継機用テーブル-自動採番ID-メッセージ本文-送り主の電話番号-メッセージタイプ-宛先の電話番号-送信時間-1減らした新しいTTL-中継機が「受信した時間」
   }
 
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
@@ -66,10 +79,10 @@ Future<void> _createDB(Database db, int version) async {
 
   Future<List<Map<String, dynamic>>> getMessagesByType(String type) async {
     final db = await instance.database;
-    
+
     final List<Map<String, dynamic>> maps = await db.query(
-      "messages", 
-      where: 'message_type = ?', 
+      "messages",
+      where: 'message_type = ?',
       whereArgs: [type],
       orderBy: 'received_at DESC',
     );
@@ -97,5 +110,34 @@ Future<void> _createDB(Database db, int version) async {
       where: 'message_type = ? AND is_read = 0', //typeが一致して、まだ未読 (0) のもの
       whereArgs: [type],
     );
+  }
+
+  Future<void> insertRelayMessage(Map<String, dynamic> relayData) async {
+    final db = await instance.database;
+
+    await db.insert("relay_messages", {
+      'relay_content': relayData['content'],
+      'relay_from': relayData['from'],
+      'relay_type': relayData['type'],
+      'relay_target': relayData['target'],
+      'relay_transmission_time': relayData['transmission_time'],
+      'relay_ttl': relayData['ttl'],
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getRelayMessagesForDebug() async {
+    final db = await instance.database;
+
+    try {
+      final List<Map<String, dynamic>> maps = await db.query(
+        "relay_messages",
+        orderBy: 'relay_received_at DESC',
+      );
+      return maps;
+    } catch (e) {
+      print("❌ [DB ERROR] 'relay_messages' テーブルの読み込みに失敗: $e");
+      print("   もしかして: 'relay_messages' テーブルが存在しない？");
+      return []; // エラーが起きても空のリストを返す
+    }
   }
 }

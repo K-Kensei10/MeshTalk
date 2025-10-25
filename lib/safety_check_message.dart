@@ -99,8 +99,11 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
               child: const Text("キャンセル"),
             ),
             ElevatedButton(onPressed: _sendMessage, child: const Text("送信")),
-            const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
 
+
+
+          //テストボタン
+            const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange, // ボタンの色をオレンジに
@@ -141,6 +144,34 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                 // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
                 try {
                   const messagedata =
+                      "Flutterからのテスト;01234567890;1;080-1111-2222;3;202501010000";
+                  final result = await methodChannel.invokeMethod(
+                    'routeToMessageBridge',
+                    messagedata,
+                  );
+                  // 画面下にメッセージを表示
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(result)));
+                } catch (e) {
+                  print('テスト呼び出し中にエラー: $e');
+                }
+              },
+            ),
+             const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange, // ボタンの色をオレンジに
+              ),
+              child: const Text(
+                '自治体連絡テスト実行',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () async {
+                // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
+                try {
+                  const messagedata =
                       "Flutterからのテスト;01234567890;4;080-1111-2222;3;202501010000";
                   final result = await methodChannel.invokeMethod(
                     'routeToMessageBridge',
@@ -155,6 +186,37 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                 }
               },
             ),
+            const SizedBox(height: 20),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueGrey, // (色はなんでもOK)
+          ),
+          child: const Text(
+            '中継DB (relay_messages) 確認',
+            style: TextStyle(color: Colors.white),
+          ),
+          onPressed: () async {
+            print("--- 🔍 中継DB (relay_messages) の中身 ---");
+            
+            // 1. さっき作った「全部読む」関数を呼ぶ
+            final relayList = await DatabaseHelper.instance.getRelayMessagesForDebug();
+            
+            if (relayList.isEmpty) {
+              print(" (中身は空っぽです)");
+            } else {
+              // 2. 1件ずつコンソールに表示する
+              for (final row in relayList) {
+                print(row);
+              }
+            }
+            print("---------------------------------------");
+            
+            // (確認するだけなのでダイアログは閉じない)
+          },
+        ),
+        //テスト ボタンここまで
+
+
           ],
         );
       },
