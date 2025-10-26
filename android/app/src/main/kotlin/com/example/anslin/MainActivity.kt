@@ -436,17 +436,13 @@ class MainActivity : FlutterActivity() {
         }
     } 
         private fun message_separate(receivedString: String) {
+            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val MY_PHONE_NUMBER = prefs.getString("flutter.my_phone_number", null)
         println("▶データ処理を開始します...")
         try {
              // cleanedStringの定義を追加 (元コードになかったため追加)
             val cleanedString = receivedString.removeSurrounding("[", "]")
             val parts = cleanedString.split(";")
-            if (parts.size < 6) {
-                println("❗️ データの形式が不正です: $receivedString")
-                return
-            }else {
-                println("✅ データの形式を確認しました。")
-            }
 
             val message = parts[0]
             val to_phone_number = parts[1]
@@ -454,13 +450,31 @@ class MainActivity : FlutterActivity() {
             val from_phone_number = parts[3]
             val TTL = parts[4].toInt()
             val timestampString = parts[5]
+            var coordinatesToDart: String? = null // null許容 ("緯度|経度")
 
-            println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL, 日時:$timestampString, message:$message")
+            if (parts.size == 8) {
+                // 位置情報あり (8個)
+                val latitude = parts[6] // 緯度
+                val longitude = parts[7] // 経度
+                coordinatesToDart = "$latitude|$longitude" 
+                println(" [受信] 位置情報あり (8個)")
+            } else if (parts.size == 6) {
+                // 位置情報なし (6個)
+                coordinatesToDart = null
+                println(" [受信] 位置情報なし (6個)")
+            }
 
-            val dataForFlutter = listOf(message,message_type,from_phone_number,timestampString)
+            println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL, 日時:$timestampString, message:$message, 座標:$coordinatesToDart")
 
-            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val MY_PHONE_NUMBER = prefs.getString("flutter.my_phone_number", null)
+            val dataForFlutter = listOf(
+                message,
+                message_type,
+                from_phone_number,
+                timestampString,
+                coordinatesToDart,
+                )
+
+
 
             when (message_type) {
                 "1" -> {// SNS
@@ -525,7 +539,7 @@ class MainActivity : FlutterActivity() {
     }
 
 
-    private fun displayMessageOnFlutter(dataList: List<String>) {
+    private fun displayMessageOnFlutter(dataList: List<String?>) {
         println("Flutterにメッセージ表示を依頼します...")
         val dataForFlutter = dataList
         runOnUiThread {

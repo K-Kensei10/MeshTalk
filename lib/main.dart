@@ -62,9 +62,10 @@ class AppData {
     final type = data[1].toString();
     final phone = data[2] ?? "不明";
     final transmissionTimeStr = data.length > 3 ? data[3] as String? ?? "" : "";
+    final coordinates = data.length > 4 ? data[4] as String? : null;
 
     //ListをMapに変換
-    final messageDataMap = {'type': type, 'content': text, 'from': phone};
+    final messageDataMap = {'type': type, 'content': text, 'from': phone, 'coordinates': coordinates,};
     // 送信時間を取得してフォーマット
     if (transmissionTimeStr.isNotEmpty) {
       messageDataMap['transmission_time'] = transmissionTimeStr;
@@ -146,12 +147,10 @@ class AppData {
     AppData.receivedMessages.value = safetyData.map((dbRow) {
 
       final time = DateTime.parse(dbRow['received_at'] as String);// 受信時間
-
       final transmissionTimeStr = dbRow['transmission_time'] as String?;// 送信時間 (他人から受信した場合にのみ存在)
-
-
-      final sender = dbRow['sender_phone_number'] as String;
-      final content = dbRow['content'] as String;
+      final sender = dbRow['sender_phone_number'] as String;// 送り主の電話番号
+      final content = dbRow['content'] as String;// メッセージ本文
+      final String? coordinates = dbRow['sender_coordinates'] as String?;// 送信者の座標情報 (null か "緯度|経度")
 
       if (sender == selfSentFlag) {
 
@@ -164,6 +163,7 @@ class AppData {
           'time': timeStr,
           'isSelf': true,
           'transmissionTime': null,
+          'coordinates': coordinates,
         };
       } else {
         // 他人から受信したメッセージ
@@ -176,6 +176,7 @@ class AppData {
           'time': timeStr,
           'isSelf': false,
           'transmissionTime': transmissionTimeStr,
+          'coordinates': coordinates,
         };
       }
     }).toList();
@@ -256,7 +257,7 @@ class MyApp extends StatelessWidget {
 // ==========================================================
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
-
+  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
   @override
   State<MainPage> createState() => _MainPageState();
 }
@@ -264,6 +265,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
+
 
   // 各ページへの参照 (変更なし)
   final List<Widget> _pages = [
