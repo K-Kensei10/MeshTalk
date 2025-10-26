@@ -14,6 +14,7 @@ import 'package:badges/badges.dart' as badges;
 import 'databasehelper.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:anslin/bluetooth_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();// Flutterの初期化を待つ
@@ -265,6 +266,8 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
 
+  late BluetoothManager bluetoothManager;
+
   // 各ページへの参照 (変更なし)
   final List<Widget> _pages = [
     const ShelterSNSPage(),
@@ -282,6 +285,11 @@ class _MainPageState extends State<MainPage> {
   void initState() {
     super.initState();
     _initPlatformListener();
+    
+    bluetoothManager = BluetoothManager(context);
+    bluetoothManager.checkBluetoothStatus();
+    bluetoothManager.listenBluetoothChanges();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndRequestPermissions();
       AppData.resetUnreadCount(_selectedIndex);
