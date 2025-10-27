@@ -6,9 +6,13 @@ import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();// Flutterの初期化を待つ
+  final prefs = await SharedPreferences.getInstance();// SharedPreferencesのインスタンスを取得
+  final String? myPhoneNumber = prefs.getString('my_phone_number');// 保存された電話番号を取得
+  runApp(MyApp(myPhoneNumber: myPhoneNumber));
 }
 
 // アプリ全体で共有するデータ（シンプルな状態管理として利用）
@@ -23,10 +27,12 @@ class AppData {
 
 //テーマ調整
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String? myPhoneNumber;
+  const MyApp({super.key, this.myPhoneNumber});
 
   @override
   Widget build(BuildContext context) {
+    final bool hasPhoneNumber = myPhoneNumber?.isNotEmpty ?? false;
     return MaterialApp(
       title: 'ANSLIN',
       theme: ThemeData(
@@ -34,7 +40,9 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Noto Sans JP',
         useMaterial3: true,
       ),
-      home: PhoneInputPage(),
+      home: hasPhoneNumber
+          ? const MainPage() // hasPhoneNumber=true -> メインページ
+          : const PhoneInputPage(), // hasPhoneNumber=false -> 電話番号入力ページ
     );
   }
 }
@@ -67,6 +75,7 @@ class _MainPageState extends State<MainPage> {
     super.initState();
 
     // 描画が終わったあとにダイアログを表示
+    //TEST用
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkAndRequestPermissions();
     });
@@ -110,15 +119,6 @@ void checkAndRequestPermissions() async {
       await permission.request();
     }
   }
-}
-
-// ================= 電話番号入力画面 =================
-class PhoneInputPage extends StatefulWidget {
-  const PhoneInputPage({super.key});
-
-  //lib\phone_number_request.dart
-  @override
-  State<PhoneInputPage> createState() => PhoneInputPageState();
 }
 
 // ================= タブ1：自治体連絡 =================
