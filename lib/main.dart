@@ -10,10 +10,10 @@ import 'package:anslin/safety_check_message.dart';
 import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
-import 'package:badges/badges.dart' as badges;
 import 'databasehelper.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:anslin/widgets/badge_icon.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();// Flutterの初期化を待つ
@@ -356,23 +356,6 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-  //バッジ付きアイコンを作成する関数
-  Widget _buildIconWithBadge(IconData iconData, ValueNotifier<int> counter) {
-    return ValueListenableBuilder<int>(
-      valueListenable: counter,
-      builder: (context, count, child) {
-        return badges.Badge(
-          position: badges.BadgePosition.topEnd(top: -10, end: -12), // バッジの位置調整
-          showBadge: count > 0, // 未読がなければバッジを非表示
-          badgeContent: Text(
-            count > 9 ? '9+' : count.toString(), // 9件以上は '9+'
-            style: const TextStyle(color: Colors.white, fontSize: 10),
-          ),
-          child: Icon(iconData), // 元のアイコン
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -382,23 +365,23 @@ class _MainPageState extends State<MainPage> {
         //各アイコンにバッジを追加
         items: [
           BottomNavigationBarItem(
-            icon: _buildIconWithBadge(
-              Icons.home,
-              AppData.unreadSnsCount,
+            icon: BadgeIcon(
+              iconData: Icons.home,
+             counter: AppData.unreadSnsCount,
             ), // バッジ付きアイコンに変更
             label: "避難所SNS",
           ),
           BottomNavigationBarItem(
-            icon: _buildIconWithBadge(
-              Icons.security,
-              AppData.unreadSafetyCheckCount,
+            icon: BadgeIcon(
+             iconData:  Icons.security,
+            counter:  AppData.unreadSafetyCheckCount,
             ), // バッジ付きアイコンに変更
             label: "安否確認",
           ),
           BottomNavigationBarItem(
-            icon: _buildIconWithBadge(
-              Icons.account_balance,
-              AppData.unreadOfficialCount,
+            icon: BadgeIcon(
+             iconData:  Icons.account_balance,
+            counter: AppData.unreadOfficialCount,
             ), // バッジ付きアイコンに変更
             label: "自治体連絡",
           ),
