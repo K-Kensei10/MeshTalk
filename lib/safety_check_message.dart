@@ -217,8 +217,21 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           },
         ),
         //テスト ボタンここまで
-
-
+        const SizedBox(height: 20), // 上のボタンとの隙間
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red[700], // お掃除なので赤色
+            ),
+            child: const Text(
+              'DBクリーンアップ実行',
+              style: TextStyle(color: Colors.white),
+            ),
+            onPressed: () async {
+              print("▶ 手動でDBクリーンアップを実行します...");
+              await DatabaseHelper.instance.DatabaseCleanup();
+              print("⏹ DBクリーンアップが完了しました。");
+            },
+          ),
           ],
         );
       },
