@@ -9,9 +9,12 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();// Flutterの初期化を待つ
-  final prefs = await SharedPreferences.getInstance();// SharedPreferencesのインスタンスを取得
-  final String? myPhoneNumber = prefs.getString('my_phone_number');// 保存された電話番号を取得
+  WidgetsFlutterBinding.ensureInitialized(); // Flutterの初期化を待つ
+  final prefs =
+      await SharedPreferences.getInstance(); // SharedPreferencesのインスタンスを取得
+  final String? myPhoneNumber = prefs.getString(
+    'my_phone_number',
+  ); // 保存された電話番号を取得
   runApp(MyApp(myPhoneNumber: myPhoneNumber));
 }
 
@@ -41,7 +44,9 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: hasPhoneNumber
-          ? const MainPage() // hasPhoneNumber=true -> メインページ
+          ? MainPage(
+              myPhoneNumber: myPhoneNumber,
+            ) // hasPhoneNumber=true -> メインページ
           : const PhoneInputPage(), // hasPhoneNumber=false -> 電話番号入力ページ
     );
   }
@@ -49,20 +54,16 @@ class MyApp extends StatelessWidget {
 
 //メインページ
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  final String? myPhoneNumber;
+  const MainPage({super.key, required this.myPhoneNumber});
 
   @override
   State<MainPage> createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
+  late final List<Widget> _pages;
   int _selectedIndex = 0;
-
-  final List<Widget> _pages = [
-    const ShelterSNSPage(),
-    const SafetyCheckPage(),
-    const LocalGovernmentPage(),
-  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -74,7 +75,11 @@ class _MainPageState extends State<MainPage> {
   void initState() {
     super.initState();
 
-    // 描画が終わったあとにダイアログを表示
+    _pages = [
+      const ShelterSNSPage(),
+      SafetyCheckPage(myPhoneNumber: widget.myPhoneNumber),
+      const LocalGovernmentPage(),
+    ];
     //TEST用
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkAndRequestPermissions();
@@ -131,7 +136,8 @@ class LocalGovernmentPage extends StatefulWidget {
 
 // ================= タブ2：安否確認 =================
 class SafetyCheckPage extends StatefulWidget {
-  const SafetyCheckPage({super.key});
+  final String? myPhoneNumber;
+  const SafetyCheckPage({super.key, required this.myPhoneNumber});
 
   @override
   State<SafetyCheckPage> createState() => SafetyCheckPageState();
