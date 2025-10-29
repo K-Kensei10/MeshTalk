@@ -232,6 +232,37 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
               print("⏹ DBクリーンアップが完了しました。");
             },
           ),
+            const SizedBox(height: 20), 
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[900],
+              ),
+              child: const Text(
+                '中継DB (ID 2) 削除テスト',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                
+                try {
+                  // 1. ID 2 を指定して削除関数を呼び出す
+                  await DatabaseHelper.instance.deleterelayMessage(2);
+
+                  print("--- 📨 ID 2 の削除処理が完了 ---");
+                  
+                  // 2. 完了を通知
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(content: Text("ID 2 の中継メッセージ削除を実行しました"))
+                  );
+
+                } catch (e) {
+                  print('中継DB(ID 2)削除テスト中にエラー: $e');
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text("エラー: $e"))
+                  );
+                }
+              },
+            ),
           ],
         );
       },

@@ -218,4 +218,24 @@ class DatabaseHelper {
       print('[DB;安否確認or自治体連絡] エラー: $e');
     }
   }
+  Future<void> deleterelayMessage(int id) async { //中継メッセージ削除
+    try {
+      final db = await instance.database;
+
+      final count = await db.delete( 
+        'relay_messages',
+        where: 'id = ?',   // IDで指定
+        whereArgs: [id],  
+      );
+
+      if (count > 0) {
+        print('✅ [DB 中継削除] ID $id の中継メッセージを削除しました。');
+      } else {
+        print('⚠️ [DB 中継削除] ID $id が見つかりませんでした。削除なし。');
+      }
+
+    } catch (e) {
+      print('❌ [DB 中継削除] ID $id の削除中にエラー: $e');
+    }
+  }
 }
