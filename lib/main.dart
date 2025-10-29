@@ -62,6 +62,8 @@ class _MainPageState extends State<MainPage> {
     const ShelterSNSPage(),
     const SafetyCheckPage(),
     const LocalGovernmentPage(),
+    const HostAuthPage(),
+    const GovernmentHostPage()
   ];
 
   void _onItemTapped(int index) {
@@ -119,44 +121,4 @@ void checkAndRequestPermissions() async {
       await permission.request();
     }
   }
-}
-
-// ================= タブ1：自治体連絡 =================
-class LocalGovernmentPage extends StatefulWidget {
-  const LocalGovernmentPage({super.key});
-
-  @override
-  State<LocalGovernmentPage> createState() => LocalGovernmentPageState();
-}
-
-// ================= タブ2：安否確認 =================
-class SafetyCheckPage extends StatefulWidget {
-  const SafetyCheckPage({super.key});
-
-  @override
-  State<SafetyCheckPage> createState() => SafetyCheckPageState();
-}
-
-// ================= タブ3：避難所SNS =================
-class ShelterSNSPage extends StatefulWidget {
-  const ShelterSNSPage({super.key});
-
-  @override
-  State<ShelterSNSPage> createState() => ShelterSNSPageState();
-}
-
-// ================= ホストモード認証ページ =================
-class HostAuthPage extends StatefulWidget {
-  const HostAuthPage({super.key});
-
-  @override
-  State<HostAuthPage> createState() => HostAuthPageState();
-}
-
-// ================= ホストモード（自治体）ページ =================
-class GovernmentHostPage extends StatefulWidget {
-  const GovernmentHostPage({super.key});
-
-  @override
-  State<GovernmentHostPage> createState() => GovernmentHostPageState();
 }

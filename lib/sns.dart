@@ -1,8 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:anslin/main.dart';
 
-class ShelterSNSPageState extends State<ShelterSNSPage> {
-  final TextEditingController _postController = TextEditingController();
+class ShelterSNSPage extends StatefulWidget {
+  const ShelterSNSPage({super.key});
+  
+  @override
+  State<ShelterSNSPage> createState() => _ShelterSNSPageState();
+}
+
+class _ShelterSNSPageState extends State<ShelterSNSPage> {
+  final TextEditingController _messageController = TextEditingController();
+  static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  //message; to_phone_number; message_type; from_phone_number; TTL
+  Future<void> _sendMessage() async {//Unused
+    final message = _messageController.text;
+
+    if (message.isNotEmpty) {
+      try {
+        await methodChannel.invokeMethod<String>('startSendMessage', {
+          'message': message,
+          'myPhoneNumber': "00000000000",
+          'messageType': 'SafetyCheck',
+          'toPhoneNumber': "00000000000",
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("メッセージを送信しました")));
+        _messageController.dispose();
+      } on Exception catch (e) {
+        debugPrint("送信エラー: $e");
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("エラーが発生しました。もう一度お試しください")));
+      }
+    }
+  }
 
   void _showPostModal() {
     showDialog(
@@ -12,7 +59,7 @@ class ShelterSNSPageState extends State<ShelterSNSPage> {
         return AlertDialog(
           title: const Text("新しい投稿"),
           content: TextField(
-            controller: _postController,
+            controller: _messageController,
             maxLength: 50,
             decoration: const InputDecoration(
               hintText: "メッセージを入力してください (50文字以内)",
@@ -37,7 +84,7 @@ class ShelterSNSPageState extends State<ShelterSNSPage> {
                       "timestamp": DateTime.now(),
                     });
                   });
-                  _postController.clear();
+                  _messageController.clear();
                   Navigator.of(context).pop();
                 }
               },

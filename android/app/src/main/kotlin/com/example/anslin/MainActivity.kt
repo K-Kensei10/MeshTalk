@@ -65,9 +65,16 @@ class MainActivity : FlutterActivity() {
             }
           }
           "startSendMessage" -> {
-            val messageData = call.arguments as? String
+            val message = call.argument<String>("message") ?: ""
+            val phoneNum = call.argument<String>("myPhoneNumber") ?: ""
+            val messageType = call.argument<String>("messageType") ?: ""
+            val toPhoneNumber = call.argument<String>("toPhoneNumber") ?: ""
+            val TTL = "150"
+
+            val messageData = CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL)
+            Log.d("Advertise", "$messageData")
             val bleController = BluetoothLeController(this)
-            bleController.SendingMessage(messageData!!) { resultMap ->
+            bleController.SendingMessage(messageData) { resultMap ->
               when (resultMap["status"]) {
                 "SEND_MESSAGE_SUCCESSFUL" -> {
                     result.success("メッセージが送信されました。")
@@ -87,6 +94,18 @@ class MainActivity : FlutterActivity() {
   }
 }
 
+//メッセージのフォーマットを作成
+fun CreateMessageFormat(message: String, phoneNum: String, messageType: String, toPhoneNumber: String, TTL: String): String {
+  //message; to_phone_number; message_type; from_phone_number; TTL
+  val messageTypeCode: String = when(messageType) {
+    "SNS" -> "1"
+    "SafetyCheck" -> "2"
+    "ToLocalGovernment" -> "3"
+    "FromLocalGovernment" -> "4"
+    else -> "0"
+  }
+  return listOf(message,toPhoneNumber,messageTypeCode,phoneNum,TTL).joinToString(";")
+}
 
 //BLE class
 class BluetoothLeController(public val activity : Activity) {
@@ -249,6 +268,7 @@ class BluetoothLeController(public val activity : Activity) {
         Log.d("Advertise","BluetoothがOFFになっています。設定からONにしてください。")
       return@checkPermissions
       }
+      Log.d("Advertise", "$messageData")
       //セントラル側が切断した後の処理
       val mGattServerCallback = object : BluetoothGattServerCallback() {
       override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {

@@ -1,20 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:anslin/main.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-//TEST
-final myPhoneNumber = 09012345678;
+String? myPhoneNumber;
 
-class SafetyCheckPageState extends State<SafetyCheckPage> {
+class SafetyCheckPage extends StatefulWidget {
+  const SafetyCheckPage({super.key});
+  
+  @override
+  State<SafetyCheckPage> createState() => _SafetyCheckPageState();
+}
+
+class _SafetyCheckPageState extends State<SafetyCheckPage> {
+  final TextEditingController _recipientController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
   List<String> receivedMessages = [];
 
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _recipientController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoneNumber();
+  }
+
+  Future<void> _loadPhoneNumber() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      myPhoneNumber = prefs.getString('my_phone_number') ?? "00000000000";
+    });
+  }
 
   Future<void> _startCatchMessage() async {
     try {
-      final String? rawMessage = await methodChannel.invokeMethod<String>('startCatchMessage');
+      final String? rawMessage = await methodChannel.invokeMethod<String>(
+        'startCatchMessage',
+      );
       if (rawMessage != null && rawMessage.isNotEmpty) {
         final parts = rawMessage.split(';');
         if (parts.length >= 5) {
@@ -23,80 +50,59 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
             receivedMessages.insert(0, "$formatted\n(${DateTime.now()})");
           });
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("メッセージを受信しました")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("メッセージを受信しました")));
         } else {
           debugPrint("メッセージ形式が不正: $rawMessage");
         }
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("メッセージは受信されませんでした")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("メッセージは受信されませんでした")));
       }
     } on PlatformException catch (e) {
       debugPrint("受信エラー: $e");
     }
   }
 
-
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
   //message; to_phone_number; message_type; from_phone_number; TTL
-  Future<void> _startSendMessage(
-    String message,
-    String toPhoneNumber,
-    String messageType,
-    String myphoneNumber,
-    String tll,
-  ) async {
-    List<String> messageList = [
-      message,
-      toPhoneNumber,
-      messageType,
-      myphoneNumber,
-      tll,
-    ];
-    String messageData = messageList.join(';');
+  Future<void> _sendMessage() async {
+    final toPhoneNumber = _recipientController.text;
+    final message = _messageController.text;
 
-    try {
-      final String? receivedMessage = await methodChannel.invokeMethod<String>(
-        'startSendMessage',
-        messageData,
-      );
-
-      if (receivedMessage != null) {
-        debugPrint("受信メッセージ: $receivedMessage");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("メッセージを送信しました")),
-        );
-
-        // 例：画面に表示するリストに追加
-        setState(() {
-          receivedMessages.insert(0, receivedMessage);
+    if (toPhoneNumber.isNotEmpty &&
+        message.isNotEmpty &&
+        myPhoneNumber!.isNotEmpty) {
+      try {
+        await methodChannel.invokeMethod<String>('startSendMessage', {
+          'message': message,
+          'myPhoneNumber': myPhoneNumber,
+          'messageType': 'SafetyCheck',
+          'toPhoneNumber': toPhoneNumber,
         });
-      } else {
-        debugPrint("メッセージは受信されませんでした");
+        if (!mounted) return;
         ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("メッセージは受信されませんでした")));
+          context,
+        ).showSnackBar(SnackBar(content: Text("メッセージを送信しました")));
+        _recipientController.clear();
+        _messageController.dispose();
+      } on Exception catch (e) {
+        debugPrint("送信エラー: $e");
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("エラーが発生しました。もう一度お試しください")));
       }
-    } on PlatformException catch (e) {
-      debugPrint("送信エラー: $e");
+    } else if (myPhoneNumber == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("エラーが発生しました。アプリを再起動してください")));
     }
   }
 
   void _showPostModal() {
-    final TextEditingController _modalPhoneController = TextEditingController();
-    final TextEditingController _modalMessageController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) {
@@ -106,15 +112,13 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: _modalPhoneController,
+                controller: _recipientController,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: "宛先（電話番号）",
-                ),
+                decoration: const InputDecoration(labelText: "宛先（電話番号）"),
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: _modalMessageController,
+                controller: _messageController,
                 maxLength: 50,
                 decoration: const InputDecoration(
                   hintText: "メッセージを入力してください (50文字以内)",
@@ -129,17 +133,15 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final phoneNumber = _modalPhoneController.text.replaceAll('-', '');
-                final message = _modalMessageController.text;
-                if ((phoneNumber.length == 10 || phoneNumber.length == 11) && message.isNotEmpty) {
-                  Navigator.of(context).pop(); // ✅ 先に閉じる
-
-                  await methodChannel.invokeMethod<String>(
-                    'startSendMessage',
-                    [message, myPhoneNumber.toString(), "2", phoneNumber, "150"].join(';'),
-                  );
-
-                  _startCatchMessage(); // ✅ 送信後に受信処理
+                final phoneNumber = _recipientController.text.replaceAll(
+                  '-',
+                  '',
+                );
+                final message = _messageController.text;
+                if ((phoneNumber.length == 10 || phoneNumber.length == 11) &&
+                    message.isNotEmpty) {
+                  Navigator.of(context).pop();
+                  _sendMessage();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("有効な宛先とメッセージを入力してください")),
@@ -154,8 +156,7 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
     );
   }
 
-
-@override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -189,9 +190,7 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
                       itemCount: receivedMessages.length,
                       itemBuilder: (context, index) {
                         return Card(
-                          child: ListTile(
-                            title: Text(receivedMessages[index]),
-                          ),
+                          child: ListTile(title: Text(receivedMessages[index])),
                         );
                       },
                     ),
@@ -202,4 +201,3 @@ class SafetyCheckPageState extends State<SafetyCheckPage> {
     );
   }
 }
-

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:anslin/main.dart';
 
-class GovernmentHostPageState extends State<GovernmentHostPage> {
+class GovernmentHostPage extends StatefulWidget {
+  const GovernmentHostPage({super.key});
+
+  @override
+  State<GovernmentHostPage> createState() => _GovernmentHostPageState();
+}
+
+class _GovernmentHostPageState extends State<GovernmentHostPage> {
   void _showCreateMessageModal() {
     final TextEditingController messageController = TextEditingController();
     int charCount = 0;
