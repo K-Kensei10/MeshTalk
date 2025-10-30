@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:anslin/phone_number_request.dart';
 import 'package:anslin/sns.dart';
 import 'package:anslin/safety_check_meassage.dart';
 import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();// Flutterの初期化を待つ
-  final prefs = await SharedPreferences.getInstance();// SharedPreferencesのインスタンスを取得
+  final prefs = await SharedPreferences.getInstance();
   final String? myPhoneNumber = prefs.getString('my_phone_number');// 保存された電話番号を取得
   runApp(MyApp(myPhoneNumber: myPhoneNumber));
 }
@@ -91,10 +93,7 @@ class _MainPageState extends State<MainPage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "避難所SNS"),
           BottomNavigationBarItem(icon: Icon(Icons.security), label: "安否確認"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance),
-            label: "自治体連絡",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance),label: "自治体連絡",),
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

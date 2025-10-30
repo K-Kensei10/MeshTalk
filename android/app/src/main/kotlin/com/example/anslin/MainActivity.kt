@@ -30,8 +30,10 @@ import android.content.Context;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import androidx.core.content.ContextCompat;
-
-
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import android.content.IntentFilter
 import android.util.Log
 
 val CONNECT_UUID = UUID.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
@@ -88,8 +90,48 @@ class MainActivity : FlutterActivity() {
               }
             }
           }
+          "routeToMessageBridge" -> {
+            val data = call.arguments as? String
+            if (data != null) {
+              MessageBridge.onMessageReceived(data)
+            }else{
+              result.error("DATA_NULL", "データを取得できませんでした", null)
+            }
+          }
         else -> result.notImplemented()
       }
+    }
+    MessageBridge.registerActivityHandler { receivedData ->
+      runOnUiThread() {
+        messageSeparete(receivedData)
+      }
+    }
+  }
+  private fun messageSeparete (receivedString: String) {
+    println("▶データ処理を開始します...")
+    try {
+      //message;to_phone_number;message_type;from_phone_number;TTL
+      val SeparetedString: List<String> = receivedString.split(";")
+      if (SeparetedString.size != 6) {
+        println("メッセージの形式が無効です。")
+        return
+      }
+      // TODO 5
+      val message = SeparetedString[0]
+      val toPhoneNumber = SeparetedString[1]
+      val messageType = SeparetedString[2]
+      val fromPhoneNumber = SeparetedString[3]
+      val TTL = SeparetedString[4].toInt()
+      val timestampString = SeparetedString[5]
+
+      val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+      val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
+
+      when (messageType) {
+
+      }else -> println(" [不明] メッセージタイプです。内容: $message")
+    }catch(e: Exception) {
+      println("❗️ データ処理中にエラーが発生しました: ${e.message}")
     }
   }
 }
@@ -105,6 +147,31 @@ fun CreateMessageFormat(message: String, phoneNum: String, messageType: String, 
     else -> "0"
   }
   return listOf(message,toPhoneNumber,messageTypeCode,phoneNum,TTL).joinToString(";")
+}
+
+//メッセージの一時保管 
+object MessageBridge {
+  //メッセージを一時的に保管
+  private val messageQueue = mutableListOf<String>()
+  private var activityHandler: ((jsonData: String) -> Unit)? = null
+
+  fun onMessageReceived(jsonData: String) {
+      activityHandler?.let { handler ->
+          handler(jsonData)
+      } ?: run {
+          messageQueue.add(jsonData)
+      }
+  }
+
+  fun registerActivityHandler(handler: (jsonData: String) -> Unit) {
+    activityHandler = handler
+    if (messageQueue.isNotEmpty()) {
+      messageQueue.forEach { jsonData ->
+        handler(jsonData)
+      }
+      messageQueue.clear()
+    }
+  }
 }
 
 //BLE class
@@ -125,7 +192,9 @@ class BluetoothLeController(public val activity : Activity) {
   private lateinit var mGattServerCallback : BluetoothGattServerCallback
   private lateinit var mBluetoothGattServer: BluetoothGattServer
   private var scanResultCallback: ((Map<String, String>) -> Unit)? = null
-  init {adapter?.name = "AL"}
+  init {
+    adapter?.name = "AL"
+  }
 
 
   //スキャン停止までの時間
