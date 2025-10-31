@@ -44,10 +44,13 @@ val NOTIFY_CHARACTERISTIC_UUID = UUID.fromString("1d2e3f4a-96e9-45a1-90f2-e39253
 //Flutter
 class MainActivity : FlutterActivity() {
   private val CHANNEL = "anslin.flutter.dev/contact"
+  private lateinit var channel: MethodChannel
 
   override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
-    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
+    channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+
+    channel.setMethodCallHandler {
       call, result ->
         when (call.method) {
           "startCatchMessage" -> {
@@ -100,6 +103,7 @@ class MainActivity : FlutterActivity() {
           }
         else -> result.notImplemented()
       }
+      
     }
     MessageBridge.registerActivityHandler { receivedData ->
       runOnUiThread() {
@@ -110,28 +114,94 @@ class MainActivity : FlutterActivity() {
   private fun messageSeparete (receivedString: String) {
     println("▶データ処理を開始します...")
     try {
-      //message;to_phone_number;message_type;from_phone_number;TTL
+      //message;to_phone_number;message_type;from_phone_number;TTL;TimeStamp
       val SeparetedString: List<String> = receivedString.split(";")
       if (SeparetedString.size != 6) {
         println("メッセージの形式が無効です。")
         return
       }
-      // TODO 5
       val message = SeparetedString[0]
       val toPhoneNumber = SeparetedString[1]
       val messageType = SeparetedString[2]
       val fromPhoneNumber = SeparetedString[3]
       val TTL = SeparetedString[4].toInt()
       val timestampString = SeparetedString[5]
-
+      val dataForFlutter = listOf(message,messageType,fromPhoneNumber,timestampString)
       val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
       val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
+      var isMessenger: Boolean = false
 
       when (messageType) {
+        "1" -> {//SNS
+          Log.d("get_message"," [処理]Type 1 (SNS)を受信")
+          displayMessageOnFlutter(dataForFlutter) // Flutter側に表示を依頼
 
+          if (TTL>0) {
+              Log.d("get_message"," [処理]Type 1 メッセージを転送")
+              relayMessage(message,toPhoneNumber,messageType,fromPhoneNumber,TTL,timestampString)
+            }
+        }
+        "2" -> {//長距離通信、安否確認
+          if (toPhoneNumber == myPhoneNumber) {
+            Log.d("get_message"," [処理]Type 2 (自分宛)を受信")
+            displayMessageOnFlutter(dataForFlutter) // Flutter側に表示を依頼
+
+          }else{
+            if (TTL>0) {
+              Log.d("get_message"," [処理]Type 2 メッセージを転送")
+              relayMessage(message,toPhoneNumber,messageType,fromPhoneNumber,TTL,timestampString)
+            }
+          }
+        }
+        "3" -> {//自治体への連絡
+          if(isMessenger) {
+            //メッセージを保存する人のアルゴリズム->メッセージを一時保存
+          }
+          if (TTL>0) {
+            Log.d("get_message"," [処理]Type 3 メッセージを転送")
+            relayMessage(message,toPhoneNumber,messageType,fromPhoneNumber,TTL,timestampString)
+          }
+        }
+        "4" -> {//自治体からの連絡
+          Log.d("get_message"," [処理]Type 4 (自治体)を受信")
+          displayMessageOnFlutter(dataForFlutter) // Flutter側に表示を依頼
+
+          if (TTL>0) {
+            Log.d("get_message"," [処理]Type 4 メッセージを転送")
+            relayMessage(message,toPhoneNumber,messageType,fromPhoneNumber,TTL,timestampString)
+          }
+        }
       }else -> println(" [不明] メッセージタイプです。内容: $message")
     }catch(e: Exception) {
-      println("❗️ データ処理中にエラーが発生しました: ${e.message}")
+      println("データ処理中にエラーが発生しました: ${e.message}")
+    }
+  }
+  private fun displayMessageOnFlutter(datalist: List<String>) {
+    runOnUiThread() {
+      if (::channel.isInitialized) {
+        channel.invokeMethod("displayMessage", datalist)
+      }else{
+        println("MethodChannelが初期化されていません。")
+      }
+    }
+  }
+  private fun relayMessage(message: String, toPhoneNumber: String, messageType: String, fromPhoneNumber: String, TTL: Int, timestampString: String) {
+    val newTTL = TTL -1
+    val relayDataMap = mapOf(
+            "content" to message,
+            "from" to fromPhoneNumber,
+            "type" to messageType,
+            "target" to toPhoneNumber,
+            "transmission_time" to timestampString,
+            "ttl" to newTTL.toString()
+        )
+    runOnUiThread() {
+      if (::channel.isInitialized) {
+        // dart側の 'saveRelayMessage' メソッドを呼び出す
+        channel.invokeMethod("saveRelayMessage", relayDataMap)
+      } else {
+        println("MethodChannelが初期化されていません。")
+      }
     }
   }
 }
@@ -146,7 +216,10 @@ fun CreateMessageFormat(message: String, phoneNum: String, messageType: String, 
     "FromLocalGovernment" -> "4"
     else -> "0"
   }
-  return listOf(message,toPhoneNumber,messageTypeCode,phoneNum,TTL).joinToString(";")
+  val currentDateTime = LocalDateTime.now()
+  val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
+  val TimeStamp = currentDateTime.format(formatter)
+  return listOf(message,toPhoneNumber,messageTypeCode,phoneNum,TTL,TimeStamp).joinToString(";")
 }
 
 //メッセージの一時保管 
