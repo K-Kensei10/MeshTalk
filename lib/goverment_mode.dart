@@ -88,15 +88,31 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("自治体連絡"),
+  
+        toolbarHeight: 60, // 高さを少し広めに
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0, // 影をなくしてフラット
+        title: const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            "自治体連絡",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: "ホストモード設定",
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const HostAuthPage())),
+            onPressed: () => Navigator.push(context,
+                                            MaterialPageRoute(builder: (context) => const HostAuthPage()),
+                                           ),
           ),
         ],
-      ),
+      ),      
       // ★ 修正点: 「ベルの音を聞く担当者 (ValueListenableBuilder)」を配置
       body: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: AppData.officialAnnouncements, // このベルを聞く
