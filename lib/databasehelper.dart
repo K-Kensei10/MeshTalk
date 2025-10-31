@@ -161,10 +161,10 @@ class DatabaseHelper {
   Future<void> deleteSnsMessages(int hoursAgo) async {
     try {
       final db = await instance.database;
-      final cutoffDateTime = DateTime.now().subtract(
+      final cutoffDateTime = DateTime.now().toUtc().subtract(
         Duration(hours: hoursAgo),
       ); // 現在時刻から指定時間を引く
-      final cutoffString = cutoffDateTime.toIso8601String(); // ISO 8601形式に変換
+      final cutoffString = cutoffDateTime.toIso8601String().substring(0, 19).replaceFirst('T', ' '); // ISO 8601形式に変換し、SQLiteのDATETIME形式に合わせる
       final count = await db.delete(
         // 'messages' テーブルから削除
         'messages',
