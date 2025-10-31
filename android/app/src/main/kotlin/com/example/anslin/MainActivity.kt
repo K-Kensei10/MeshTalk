@@ -58,7 +58,11 @@ class MainActivity : FlutterActivity() {
             bleController.ScanAndConnect { resultMap ->
               when (resultMap["status"]) {
                 "RECEIVE_MESSAGE_SUCCESSFUL" -> {
-                    result.success(resultMap["message"])
+                    val messageData = resultMap["data"]
+                    if (messageData != null) {
+                      MessageBridge.onMessageReceived(messageData)
+                    }
+                    result.success("メッセージ受信＆処理完了")
                 }
                 "device_not_found" -> {
                     result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
@@ -91,14 +95,6 @@ class MainActivity : FlutterActivity() {
                     result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
                 }
               }
-            }
-          }
-          "routeToMessageBridge" -> {
-            val data = call.arguments as? String
-            if (data != null) {
-              MessageBridge.onMessageReceived(data)
-            }else{
-              result.error("DATA_NULL", "データを取得できませんでした", null)
             }
           }
         else -> result.notImplemented()
@@ -576,13 +572,13 @@ class BluetoothLeController(public val activity : Activity) {
     ) 
     {
       if (status == BluetoothGatt.GATT_SUCCESS) {
-        val data: ByteArray? = characteristic.getValue()
-        val message = data?.let { String(it, Charsets.UTF_8) } ?: ""
-        Log.d("BLE_READ", "受信メッセージ: $message")
+        val rawData: ByteArray? = characteristic.getValue()
+        val data = rawData?.let { String(it, Charsets.UTF_8) } ?: ""
+        Log.d("BLE_READ", "受信メッセージ: $data")
         scanResultCallback?.invoke(
           mapOf(
             "status" to "RECEIVE_MESSAGE_SUCCESSFUL",
-            "message" to message
+            "message" to data
           )
         )
         bluetoothGatt?.disconnect()
