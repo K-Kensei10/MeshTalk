@@ -122,15 +122,26 @@ class DatabaseHelper {
   Future<void> insertRelayMessage(Map<String, dynamic> relayData) async {
     final db = await instance.database;
 
-    await db.insert("relay_messages", {
+    final Map<String, dynamic> dataToInsert = {
       'relay_content': relayData['content'],
       'relay_from': relayData['from'],
       'relay_type': relayData['type'],
       'relay_target': relayData['target'],
       'relay_transmission_time': relayData['transmission_time'],
       'relay_ttl': relayData['ttl'],
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    };
+
+    if (relayData.containsKey('coordinates')) {
+      // DBの 'relay_sender_coordinates' カラムに、その値を入れる
+      dataToInsert['relay_sender_coordinates'] = relayData['coordinates'];
+    }
+    await db.insert(
+      "relay_messages",
+      dataToInsert, 
+      conflictAlgorithm: ConflictAlgorithm.replace 
+    );
   }
+  
 
   Future<List<Map<String, dynamic>>> getRelayMessagesForDebug() async {
     final db = await instance.database;

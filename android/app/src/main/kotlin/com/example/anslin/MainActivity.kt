@@ -484,7 +484,7 @@ class MainActivity : FlutterActivity() {
 
                     if (TTL > 0) {
                         println("TTLが残っているため、他の端末へ転送します。")
-                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
+                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString,coordinatesToDart)
                     }
                 }
 
@@ -499,7 +499,7 @@ class MainActivity : FlutterActivity() {
                     } else {
                         println("  -> 宛先が違うため、転送のみ行います。")
                         if (TTL > 0){
-                            relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
+                            relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString,coordinatesToDart)
                             println("  -> TTLが残っているため、他の端末へ転送します。")
                         }
                     }
@@ -510,7 +510,7 @@ class MainActivity : FlutterActivity() {
                     println("[処理]Type 3: 転送処理を行います。")
                     //自治体端末である場合、Flutterを呼び出して表示させるコードをここに追加
                     if (TTL > 0){
-                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
+                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString,coordinatesToDart)
                         println("  -> TTLが残っているため、他の端末へ転送します。")
                     }
                 }
@@ -522,7 +522,7 @@ class MainActivity : FlutterActivity() {
                     displayMessageOnFlutter(dataForFlutter)
 
                     if (TTL > 0){
-                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString)
+                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString,coordinatesToDart)
                         println("  -> TTLが残っているため、他の端末へ転送します。")
                     }
                 }
@@ -557,7 +557,8 @@ class MainActivity : FlutterActivity() {
         message_type: String,
         from_phone_number: String,
         TTL: Int,
-        timestampString: String
+        timestampString: String,
+        coordinatesToDart: String?
     ) {
         println("▶中継DBへの保存処理を開始します...")
         
@@ -574,7 +575,8 @@ class MainActivity : FlutterActivity() {
             "type" to message_type,
             "target" to to_phone_number,
             "transmission_time" to timestampString,
-            "ttl" to newTTL 
+            "ttl" to newTTL,
+            "coordinates" to coordinatesToDart
         )
 
         println("Dartに中継DBへの保存を依頼: $relayDataMap")
