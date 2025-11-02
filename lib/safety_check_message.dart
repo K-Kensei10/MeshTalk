@@ -5,6 +5,7 @@ import 'databasehelper.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:anslin/phone_number_request.dart';
+import 'dart:async';
 
 // ★ 修正点: StatefulWidgetの「設計図」クラスを追加
 class SafetyCheckPage extends StatefulWidget {
@@ -27,7 +28,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     super.dispose();
   }
 
-  void _sendMessage() async {
+    void _sendMessage() async {
     final phone = _recipientController.text;
     final message = _messageController.text;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -45,7 +46,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     // ★ 通信中SnackBar（グルグル付き）
     scaffoldMessenger.showSnackBar(
       SnackBar(
-        duration: const Duration(days: 1), // 明示的に閉じるまで表示
+        duration: const Duration(days: 1),
         content: Row(
           children: const [
             CircularProgressIndicator(),
@@ -59,7 +60,6 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     bool responded = false;
 
     try {
-      // ★ Kotlinとの通信を試みる（120秒タイムアウト付き）
       final result = await methodChannel
         .invokeMethod<String>('sendMessage', {
           'message': message,
@@ -71,22 +71,20 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           const Duration(seconds: 120),
           onTimeout: () {
             responded = true;
-            scaffoldMessenger.hideCurrentSnackBar(); // 通信中SnackBarを閉じる
+            scaffoldMessenger.hideCurrentSnackBar();
             scaffoldMessenger.showSnackBar(
               const SnackBar(content: Text('タイムアウトしました')),
             );
-            throw TimeoutException("送信タイムアウト"); // catchに飛ばす
+            throw TimeoutException("送信タイムアウト");
           },
         );
 
-      // ★ 通信成功時の処理
       if (!responded) {
         scaffoldMessenger.hideCurrentSnackBar();
 
         if (result == 'success') {
-          // ★ 成功時のみDB保存・入力クリア・モーダル閉じる
           final messageDataMap = {
-            'type': '2', // 安否確認 (Type 2)
+            'type': '2',
             'content': '宛先: $phone\n内容: $message',
             'from': 'SELF_SENT_SAFETY_CHECK',
           };
@@ -105,17 +103,15 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           );
         }
       }
-    } on TimeoutException {
-      // ★ タイムアウト時はすでにSnackBar表示済みなので何もしない
-    } catch (e) {
-      // ★ 最初の送信時など、MethodChannel未初期化などの例外をキャッチ
+    } on TimeoutException catch (_) {
+      // タイムアウト時はすでにSnackBar表示済みなので何もしない
+    } catch (_) {
       scaffoldMessenger.hideCurrentSnackBar();
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('予期せぬエラーが発生しました: $e')),
+        const SnackBar(content: Text('予期せぬエラーが発生しました')),
       );
     }
   }
-
 
   void _showMessageModal() {
     showDialog(
