@@ -28,12 +28,12 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     super.dispose();
   }
 
-    void _sendMessage() async {
+  void _sendMessage() async {
     final phone = _recipientController.text;
     final message = _messageController.text;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    // ★ 入力チェック（空欄なら警告）
+    // 入力チェック
     if (phone.isEmpty || message.isEmpty) {
       if (mounted) {
         scaffoldMessenger.showSnackBar(
@@ -43,7 +43,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
       return;
     }
 
-    // ★ 通信中SnackBar（グルグル付き）
+    // 通信中SnackBar（グルグル付き）
     scaffoldMessenger.showSnackBar(
       SnackBar(
         duration: const Duration(days: 1),
@@ -56,6 +56,9 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         ),
       ),
     );
+
+    // 少し待ってから通信開始（グルグル表示を確実に出すため）
+    await Future.delayed(const Duration(milliseconds: 100));
 
     bool responded = false;
 
