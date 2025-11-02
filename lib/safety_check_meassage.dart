@@ -7,7 +7,6 @@ import 'databasehelper.dart';
 import 'package:intl/intl.dart';
 
 String? myPhoneNumber;
-bool isManual = false;
 
 class SafetyCheckPage extends StatefulWidget {
   const SafetyCheckPage({super.key});
@@ -46,118 +45,96 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
   //メッセージを受信する関数
   ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _receivingSnackBar;
 
-  Future<void> _startCatchMessage() async {
+  Future<void> _startCatchMessage({required bool isManual}) async {
     try {
       if (isManual) {
         if (!mounted) return;
         // 「受信中」スナックバーを表示
-        _receivingSnackBar = ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("メッセージを受信中です..."),
-            duration: Duration(days: 1),
+        _receivingSnackBar = showSnackbar(
+          context,
+          'メッセージを受信中…',
+          120,
+          leading: const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
         );
       }
-      final String? result = await methodChannel.invokeMethod<String>(
-        'startCatchMessage',
-        {},
-      );
+      final String? result = await methodChannel.invokeMethod<String>('startCatchMessage');
       if (!mounted) return;
-      // 「受信中」スナックバーを閉じる
-      _receivingSnackBar?.close();
       if (isManual) {
         if (result != null && result.isNotEmpty) {
-          showSnackbar(context, "メッセージを受信しました。", 3);
+          // 「受信中」スナックバーを閉じる
+          _receivingSnackBar?.close();
+          showSnackbar(context, "メッセージを受信しました。", 3, backgroundColor: Colors.green,);
         } else {
-          showSnackbar(context, "メッセージを受信できませんでした。", 3);
+          _receivingSnackBar?.close();
+          showSnackbar(context, "メッセージを受信できませんでした。", 3, backgroundColor: Colors.red,);
         }
       }
     } on PlatformException catch (e) {
       if (!mounted) return;
       _receivingSnackBar?.close(); // エラー時も閉じる
       if (isManual) {
-        showSnackbar(context, "エラー: ${e.message}", 3);
+        showSnackbar(context, "エラー: ${e.message}", 3, backgroundColor: Colors.red,);
       }
     }
   }
-
-  //message; to_phone_number; message_type; from_phone_number; TTL
+  
   Future<void> _sendMessage() async {
     final toPhoneNumber = _recipientController.text;
     final message = _messageController.text;
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     if (toPhoneNumber.isNotEmpty &&
         message.isNotEmpty &&
         myPhoneNumber!.isNotEmpty) {
-      // 通信中SnackBar（グルグル付き）
-      scaffoldMessenger.hideCurrentSnackBar(); // ★ 前のSnackBarを消す
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          duration: const Duration(days: 1), // 明示的に閉じるまで表示
-          content: Row(
-            children: const [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('通信中…'),
-            ],
-          ),
-        ),
-      );
-
-      // 少し待ってから通信開始（グルグル表示を確実に出すため）
-      await Future.delayed(const Duration(milliseconds: 100));
-      bool responded = false;
+      //message; to_phone_number; message_type; from_phone_number; TTL
       try {
-        await methodChannel
-            .invokeMethod<String>('startSendMessage', {
-              'message': message,
-              'myPhoneNumber': myPhoneNumber,
-              'messageType': 'SafetyCheck',
-              'toPhoneNumber': toPhoneNumber,
-            })
-            .timeout(
-              const Duration(seconds: 120),
-              onTimeout: () {
-                responded = true;
-                scaffoldMessenger.hideCurrentSnackBar(); // ★ グルグルを消す
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('タイムアウトしました'),
-                    duration: Duration(seconds: 4), // ★ 自動で消える
-                  ),
-                );
-                throw TimeoutException("送信タイムアウト");
-              },
-            );
-
+        // 通信中SnackBar（グルグル付き）
+        _receivingSnackBar = showSnackbar(
+          context,
+          'メッセージを送信中…',
+          120,
+          leading: const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+        final String? result = await methodChannel.invokeMethod<String>('startSendMessage', {
+          'message': message,
+          'myPhoneNumber': myPhoneNumber,
+          'messageType': 'SafetyCheck',
+          'toPhoneNumber': toPhoneNumber,
+        });
         final messageDataMap = {
           'type': '2', // 安否確認 (Type 2)
           'content': '宛先: $toPhoneNumber\n内容: $message',
-
           'from': 'SELF_SENT_SAFETY_CHECK', // (自分だとわかる特殊な文字列)
         };
-        // データベースに保存
-        await DatabaseHelper.instance.insertMessage(messageDataMap);
-
-        await AppData.loadSafetyCheckMessages();
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("メッセージを送信しました")));
-        _recipientController.clear();
-        _messageController.dispose();
-      } on Exception catch (e) {
-        debugPrint("送信エラー: $e");
+        if (result != null && result.isNotEmpty) {
+          _receivingSnackBar?.close();
+          showSnackbar(context, "メッセージを送信しました。", 3, backgroundColor: Colors.green,);
+          // データベースに保存
+          await DatabaseHelper.instance.insertMessage(messageDataMap);
+          await AppData.loadSafetyCheckMessages();
+          //入力文字リセット
+          _recipientController.clear();
+          _messageController.dispose();
+        } else {
+          _receivingSnackBar?.close();
+          showSnackbar(context, "メッセージを送信できませんでした。", 3, backgroundColor: Colors.red,);
+        }
+      } on  PlatformException catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("エラーが発生しました。もう一度お試しください")));
+        _receivingSnackBar?.close();
+        showSnackbar(context, "エラー: ${e.message}", 3, backgroundColor: Colors.red,);
       }
     } else if (myPhoneNumber == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("エラーが発生しました。アプリを再起動してください")));
+      if (!mounted) return;
+      showSnackbar(context, "エラーが発生しました。アプリを再起動してください。", 3, backgroundColor: Colors.red,);
     }
   }
 
@@ -202,9 +179,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                   Navigator.of(context).pop();
                   _sendMessage();
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("有効な宛先とメッセージを入力してください")),
-                  );
+                  showSnackbar(context, "有効な宛先とメッセージを入力してください", 3);
                 }
               },
               child: const Text("送信"),
@@ -224,7 +199,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           IconButton(
             icon: const Icon(Icons.wifi_tethering),
             tooltip: "スキャン",
-            onPressed: _startCatchMessage,
+            onPressed: () => _startCatchMessage(isManual: true),
           ),
         ],
       ),
@@ -309,7 +284,6 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                               }
                             } catch (e) {
                               formattedSendTime = "送信日時不明 (Exception)";
-                              print("Error parsing time (manual): $e");
                             }
                           }
 
