@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:anslin/snack_bar.dart';
+import 'package:anslin/main.dart';
+import 'databasehelper.dart';
+import 'package:intl/intl.dart';
 
 String? myPhoneNumber;
+bool isManual = false;
 
 class SafetyCheckPage extends StatefulWidget {
   const SafetyCheckPage({super.key});
-  
+
   @override
   State<SafetyCheckPage> createState() => _SafetyCheckPageState();
 }
@@ -30,6 +35,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     _loadPhoneNumber();
   }
 
+  //電話番後を取得する関数
   Future<void> _loadPhoneNumber() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -37,33 +43,41 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     });
   }
 
+  //メッセージを受信する関数
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _receivingSnackBar;
+
   Future<void> _startCatchMessage() async {
     try {
-      final String? rawMessage = await methodChannel.invokeMethod<String>(
-        'startCatchMessage',
-      );
-      if (rawMessage != null && rawMessage.isNotEmpty) {
-        final parts = rawMessage.split(';');
-        if (parts.length >= 5) {
-          final formatted = "電話番号：${parts[3]}, メッセージ：${parts[0]}";
-          setState(() {
-            receivedMessages.insert(0, "$formatted\n(${DateTime.now()})");
-          });
-          if (!mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("メッセージを受信しました")));
-        } else {
-          debugPrint("メッセージ形式が不正: $rawMessage");
-        }
-      } else {
+      if (isManual) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("メッセージは受信されませんでした")));
+        // 「受信中」スナックバーを表示
+        _receivingSnackBar = ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("メッセージを受信中です..."),
+            duration: Duration(days: 1),
+          ),
+        );
+      }
+      final String? result = await methodChannel.invokeMethod<String>(
+        'startCatchMessage',
+        {},
+      );
+      if (!mounted) return;
+      // 「受信中」スナックバーを閉じる
+      _receivingSnackBar?.close();
+      if (isManual) {
+        if (result != null && result.isNotEmpty) {
+          showSnackbar(context, "メッセージを受信しました。", 3);
+        } else {
+          showSnackbar(context, "メッセージを受信できませんでした。", 3);
+        }
       }
     } on PlatformException catch (e) {
-      debugPrint("受信エラー: $e");
+      if (!mounted) return;
+      _receivingSnackBar?.close(); // エラー時も閉じる
+      if (isManual) {
+        showSnackbar(context, "エラー: ${e.message}", 3);
+      }
     }
   }
 
@@ -71,17 +85,62 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
   Future<void> _sendMessage() async {
     final toPhoneNumber = _recipientController.text;
     final message = _messageController.text;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     if (toPhoneNumber.isNotEmpty &&
         message.isNotEmpty &&
         myPhoneNumber!.isNotEmpty) {
+      // 通信中SnackBar（グルグル付き）
+      scaffoldMessenger.hideCurrentSnackBar(); // ★ 前のSnackBarを消す
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          duration: const Duration(days: 1), // 明示的に閉じるまで表示
+          content: Row(
+            children: const [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('通信中…'),
+            ],
+          ),
+        ),
+      );
+
+      // 少し待ってから通信開始（グルグル表示を確実に出すため）
+      await Future.delayed(const Duration(milliseconds: 100));
+      bool responded = false;
       try {
-        await methodChannel.invokeMethod<String>('startSendMessage', {
-          'message': message,
-          'myPhoneNumber': myPhoneNumber,
-          'messageType': 'SafetyCheck',
-          'toPhoneNumber': toPhoneNumber,
-        });
+        await methodChannel
+            .invokeMethod<String>('startSendMessage', {
+              'message': message,
+              'myPhoneNumber': myPhoneNumber,
+              'messageType': 'SafetyCheck',
+              'toPhoneNumber': toPhoneNumber,
+            })
+            .timeout(
+              const Duration(seconds: 120),
+              onTimeout: () {
+                responded = true;
+                scaffoldMessenger.hideCurrentSnackBar(); // ★ グルグルを消す
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('タイムアウトしました'),
+                    duration: Duration(seconds: 4), // ★ 自動で消える
+                  ),
+                );
+                throw TimeoutException("送信タイムアウト");
+              },
+            );
+
+        final messageDataMap = {
+          'type': '2', // 安否確認 (Type 2)
+          'content': '宛先: $toPhoneNumber\n内容: $message',
+
+          'from': 'SELF_SENT_SAFETY_CHECK', // (自分だとわかる特殊な文字列)
+        };
+        // データベースに保存
+        await DatabaseHelper.instance.insertMessage(messageDataMap);
+
+        await AppData.loadSafetyCheckMessages();
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
@@ -174,29 +233,139 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         tooltip: '新しい投稿',
         child: const Icon(Icons.add),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Text(
-              "メッセージは暗号化され、中継者には見えません",
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: receivedMessages.isEmpty
-                  ? const Center(child: Text("まだメッセージは受信されていません"))
-                  : ListView.builder(
-                      itemCount: receivedMessages.length,
-                      itemBuilder: (context, index) {
-                        return Card(
-                          child: ListTile(title: Text(receivedMessages[index])),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+      body: ValueListenableBuilder<List<Map<String, dynamic>>>(
+        valueListenable: AppData.receivedMessages, //メッセージを取得
+        builder: (context, messages, child) {
+          //メッセージを再描画する
+          return Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "受信した安否確認メッセージ",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: messages.isEmpty
+                    ? const Center(child: Text("まだメッセージはありません"))
+                    //メッセージがあった場合
+                    : ListView.builder(
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final msg = messages[index];
+                          final bool isSelf = msg['isSelf'] as bool? ?? false;
+
+                          final transmissionTimeStr =
+                              msg['transmissionTime'] as String?;
+
+                          String formattedSendTime = ""; // 最終的に表示する文字列
+
+                          if (transmissionTimeStr != null &&
+                              transmissionTimeStr.isNotEmpty) {
+                            try {
+                              // 前後の空白を取り除く
+                              final cleanTimeStr = transmissionTimeStr.trim();
+
+                              //12文字以上あることを確認
+                              if (cleanTimeStr.length >= 12) {
+                                //先頭12文字を切り取る
+                                final finalTimeStr = cleanTimeStr.substring(
+                                  0,
+                                  12,
+                                );
+
+                                //正規表現で各パーツを抽出
+                                final regex = RegExp(
+                                  r'^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$',
+                                );
+                                final match = regex.firstMatch(finalTimeStr);
+
+                                if (match != null) {
+                                  //分解したパーツを変換
+                                  final year = int.parse(match.group(1)!);
+                                  final month = int.parse(match.group(2)!);
+                                  final day = int.parse(match.group(3)!);
+                                  final hour = int.parse(match.group(4)!);
+                                  final minute = int.parse(match.group(5)!);
+
+                                  //オブジェクトを組み直す
+                                  final dt = DateTime(
+                                    year,
+                                    month,
+                                    day,
+                                    hour,
+                                    minute,
+                                  );
+
+                                  formattedSendTime =
+                                      "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(dt)}";
+                                } else {
+                                  formattedSendTime = "送信日時不明 (形式エラー)";
+                                }
+                              } else {
+                                formattedSendTime = "送信日時不明 (文字数エラー)";
+                              }
+                            } catch (e) {
+                              formattedSendTime = "送信日時不明 (Exception)";
+                              print("Error parsing time (manual): $e");
+                            }
+                          }
+
+                          return Card(
+                            color: isSelf
+                                ? const Color.fromARGB(255, 151, 255, 159)
+                                : Colors.white,
+                            margin: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 8,
+                            ),
+                            child: ListTile(
+                              title: Text(msg['subject'] as String? ?? ''),
+
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    msg['detail'] as String? ?? '',
+                                    style: const TextStyle(fontSize: 15),
+                                  ),
+
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Text(
+                                      msg['time'] as String? ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black54,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+
+                                  if (formattedSendTime.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        formattedSendTime,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
