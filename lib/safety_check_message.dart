@@ -36,17 +36,22 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     // 入力チェック
     if (phone.isEmpty || message.isEmpty) {
       if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar(); // ★ 前のSnackBarを消す
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text("宛先とメッセージを入力してください")),
+          const SnackBar(
+            content: Text("宛先とメッセージを入力してください"),
+            duration: Duration(seconds: 3), // ★ 自動で消える
+          ),
         );
       }
       return;
     }
 
     // 通信中SnackBar（グルグル付き）
+    scaffoldMessenger.hideCurrentSnackBar(); // ★ 前のSnackBarを消す
     scaffoldMessenger.showSnackBar(
       SnackBar(
-        duration: const Duration(days: 1),
+        duration: const Duration(days: 1), // 明示的に閉じるまで表示
         content: Row(
           children: const [
             CircularProgressIndicator(),
@@ -74,16 +79,19 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           const Duration(seconds: 120),
           onTimeout: () {
             responded = true;
-            scaffoldMessenger.hideCurrentSnackBar();
+            scaffoldMessenger.hideCurrentSnackBar(); // ★ グルグルを消す
             scaffoldMessenger.showSnackBar(
-              const SnackBar(content: Text('タイムアウトしました')),
+              const SnackBar(
+                content: Text('タイムアウトしました'),
+                duration: Duration(seconds: 4), // ★ 自動で消える
+              ),
             );
             throw TimeoutException("送信タイムアウト");
           },
         );
 
       if (!responded) {
-        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.hideCurrentSnackBar(); // ★ グルグルを消す
 
         if (result == 'success') {
           final messageDataMap = {
@@ -98,20 +106,29 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           if (mounted) Navigator.of(context).pop();
 
           scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('送信が成功しました')),
+            const SnackBar(
+              content: Text('送信が成功しました'),
+              duration: Duration(seconds: 3), // ★ 自動で消える
+            ),
           );
         } else {
           scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('予期せぬエラーが発生しました')),
+            const SnackBar(
+              content: Text('予期せぬエラーが発生しました'),
+              duration: Duration(seconds: 3), // ★ 自動で消える
+            ),
           );
         }
       }
     } on TimeoutException catch (_) {
       // タイムアウト時はすでにSnackBar表示済みなので何もしない
     } catch (_) {
-      scaffoldMessenger.hideCurrentSnackBar();
+      scaffoldMessenger.hideCurrentSnackBar(); // ★ グルグルを消す
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('予期せぬエラーが発生しました')),
+        const SnackBar(
+          content: Text('予期せぬエラーが発生しました'),
+          duration: Duration(seconds: 3), // ★ 自動で消える
+        ),
       );
     }
   }
