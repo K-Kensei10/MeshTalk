@@ -30,20 +30,19 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
   void _sendMessage() async {
     final phone = _recipientController.text;
     final message = _messageController.text;
-
-    // ★ SnackBar表示用のMessengerを取得
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    // ★ 入力チェック
+
+    // ★ 入力チェック（空欄なら警告）
     if (phone.isEmpty || message.isEmpty) {
       if (mounted) {
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text("宛先とメッセージを入力してください")),
         );
       }
-    return;
+      return;
     }
 
-    // ★ 通信中のSnackBar＋グルグル表示
+    // ★ 通信中SnackBar（グルグル付き）
     scaffoldMessenger.showSnackBar(
       SnackBar(
         duration: const Duration(days: 1), // 明示的に閉じるまで表示
@@ -58,9 +57,9 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     );
 
     bool responded = false;
-    
+
     try {
-      // ★  MethodChannel呼び出し＋120秒タイムアウト
+      // ★ Kotlinとの通信を試みる（120秒タイムアウト付き）
       final result = await methodChannel
         .invokeMethod<String>('sendMessage', {
           'message': message,
@@ -69,52 +68,50 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           'targetPhoneNum': phone,
         })
         .timeout(
-        const Duration(seconds: 120),
-        onTimeout: () {
-          responded = true;
-          scaffoldMessenger.hideCurrentSnackBar();
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('タイムアウトしました')),
-          );
-          return null;
-        },
-      );
+          const Duration(seconds: 120),
+          onTimeout: () {
+            responded = true;
+            scaffoldMessenger.hideCurrentSnackBar(); // 通信中SnackBarを閉じる
+            scaffoldMessenger.showSnackBar(
+              const SnackBar(content: Text('タイムアウトしました')),
+            );
+            throw TimeoutException("送信タイムアウト"); // catchに飛ばす
+          },
+        );
 
-      // ★  成功・失敗の判定とSnackBar表示
+      // ★ 通信成功時の処理
       if (!responded) {
         scaffoldMessenger.hideCurrentSnackBar();
+
         if (result == 'success') {
-          // ★ 元のDB保存処理をここに移動（成功時のみ実行）
+          // ★ 成功時のみDB保存・入力クリア・モーダル閉じる
           final messageDataMap = {
             'type': '2', // 安否確認 (Type 2)
             'content': '宛先: $phone\n内容: $message',
-              'from': 'SELF_SENT_SAFETY_CHECK',
-            };
-
+            'from': 'SELF_SENT_SAFETY_CHECK',
+          };
           await DatabaseHelper.instance.insertMessage(messageDataMap);
           await AppData.loadSafetyCheckMessages();
-
           _recipientController.clear();
           _messageController.clear();
-
-          if (mounted) {
-            Navigator.of(context).pop();
-          }
+          if (mounted) Navigator.of(context).pop();
 
           scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text("送信が成功しました")),
+            const SnackBar(content: Text('送信が成功しました')),
           );
         } else {
           scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text("予期せぬエラーが発生しました")),
+            const SnackBar(content: Text('予期せぬエラーが発生しました')),
           );
         }
       }
+    } on TimeoutException {
+      // ★ タイムアウト時はすでにSnackBar表示済みなので何もしない
     } catch (e) {
-      // ★  通信失敗時の例外処理
+      // ★ 最初の送信時など、MethodChannel未初期化などの例外をキャッチ
       scaffoldMessenger.hideCurrentSnackBar();
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text("予期せぬエラーが発生しました")),
+        SnackBar(content: Text('予期せぬエラーが発生しました: $e')),
       );
     }
   }
