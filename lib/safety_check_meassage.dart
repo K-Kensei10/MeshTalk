@@ -120,7 +120,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           ),
         );
         final String? result = await methodChannel
-            .invokeMethod<String>('startSendMessage', {
+            .invokeMethod<String>('routeMessageBridge', {
               'message': message,
               'myPhoneNumber': myPhoneNumber,
               'messageType': 'SafetyCheck',
