@@ -61,27 +61,44 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           ),
         );
       }
-      final String? result = await methodChannel.invokeMethod<String>('startCatchMessage');
+      final String? result = await methodChannel.invokeMethod<String>(
+        'startCatchMessage',
+      );
       if (!mounted) return;
       if (isManual) {
         if (result != null && result.isNotEmpty) {
           // 「受信中」スナックバーを閉じる
           _receivingSnackBar?.close();
-          showSnackbar(context, "メッセージを受信しました。", 3, backgroundColor: Colors.green,);
+          showSnackbar(
+            context,
+            "メッセージを受信しました。",
+            3,
+            backgroundColor: Colors.green,
+          );
         } else {
           _receivingSnackBar?.close();
-          showSnackbar(context, "メッセージを受信できませんでした。", 3, backgroundColor: Colors.red,);
+          showSnackbar(
+            context,
+            "メッセージを受信できませんでした。",
+            3,
+            backgroundColor: Colors.red,
+          );
         }
       }
     } on PlatformException catch (e) {
       if (!mounted) return;
       _receivingSnackBar?.close(); // エラー時も閉じる
       if (isManual) {
-        showSnackbar(context, "エラー: ${e.message}", 3, backgroundColor: Colors.red,);
+        showSnackbar(
+          context,
+          "エラー: ${e.message}",
+          3,
+          backgroundColor: Colors.red,
+        );
       }
     }
   }
-  
+
   Future<void> _sendMessage() async {
     final toPhoneNumber = _recipientController.text;
     final message = _messageController.text;
@@ -102,12 +119,13 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
         );
-        final String? result = await methodChannel.invokeMethod<String>('startSendMessage', {
-          'message': message,
-          'myPhoneNumber': myPhoneNumber,
-          'messageType': 'SafetyCheck',
-          'toPhoneNumber': toPhoneNumber,
-        });
+        final String? result = await methodChannel
+            .invokeMethod<String>('startSendMessage', {
+              'message': message,
+              'myPhoneNumber': myPhoneNumber,
+              'messageType': 'SafetyCheck',
+              'toPhoneNumber': toPhoneNumber,
+            });
         final messageDataMap = {
           'type': '2', // 安否確認 (Type 2)
           'content': '宛先: $toPhoneNumber\n内容: $message',
@@ -116,7 +134,12 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         if (!mounted) return;
         if (result != null && result.isNotEmpty) {
           _receivingSnackBar?.close();
-          showSnackbar(context, "メッセージを送信しました。", 3, backgroundColor: Colors.green,);
+          showSnackbar(
+            context,
+            "メッセージを送信しました。",
+            3,
+            backgroundColor: Colors.green,
+          );
           // データベースに保存
           await DatabaseHelper.instance.insertMessage(messageDataMap);
           await AppData.loadSafetyCheckMessages();
@@ -125,16 +148,31 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           _messageController.dispose();
         } else {
           _receivingSnackBar?.close();
-          showSnackbar(context, "メッセージを送信できませんでした。", 3, backgroundColor: Colors.red,);
+          showSnackbar(
+            context,
+            "メッセージを送信できませんでした。",
+            3,
+            backgroundColor: Colors.red,
+          );
         }
-      } on  PlatformException catch (e) {
+      } on PlatformException catch (e) {
         if (!mounted) return;
         _receivingSnackBar?.close();
-        showSnackbar(context, "エラー: ${e.message}", 3, backgroundColor: Colors.red,);
+        showSnackbar(
+          context,
+          "エラー: ${e.message}",
+          3,
+          backgroundColor: Colors.red,
+        );
       }
     } else if (myPhoneNumber == null) {
       if (!mounted) return;
-      showSnackbar(context, "エラーが発生しました。アプリを再起動してください。", 3, backgroundColor: Colors.red,);
+      showSnackbar(
+        context,
+        "エラーが発生しました。アプリを再起動してください。",
+        3,
+        backgroundColor: Colors.red,
+      );
     }
   }
 
@@ -214,14 +252,6 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           //メッセージを再描画する
           return Column(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  "受信した安否確認メッセージ",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Divider(),
               Expanded(
                 child: messages.isEmpty
                     ? const Center(child: Text("まだメッセージはありません"))
