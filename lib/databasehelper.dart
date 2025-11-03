@@ -43,16 +43,11 @@ class DatabaseHelper {
       '''
       CREATE TABLE relay_messages (                             
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      relay_content TEXT NOT NULL,
-      relay_from TEXT NOT NULL,
-      relay_type TEXT NOT NULL, 
-      relay_target TEXT NOT NULL,
-      relay_transmission_time TEXT NULL,
-      relay_ttl INTEGER NOT NULL,
-      relay_received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      relay_data TEXT NOT NULL,
+      relay_received_at TEXT NOT NULL
       )
     ''',
-    ); //中継機用テーブル-自動採番ID-メッセージ本文-送り主の電話番号-メッセージタイプ-宛先の電話番号-送信時間-1減らした新しいTTL-中継機が「受信した時間」
+    ); //中継機用テーブル-自動採番ID-中継用データ-中継機が「受信した時間」
   }
 
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
@@ -114,17 +109,19 @@ class DatabaseHelper {
     );
   }
 
-  Future<void> insertRelayMessage(Map<String, dynamic> relayData) async {
+  Future<void> insertRelayMessage(String relayString) async {
     final db = await instance.database;
+    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
+    final Map<String, dynamic> dataToInsert = {
+    'relay_data': relayString,
+    'relay_received_at': nowLocalString, // ★ JST時刻を保存
+    };
 
-    await db.insert("relay_messages", {
-      'relay_content': relayData['content'],
-      'relay_from': relayData['from'],
-      'relay_type': relayData['type'],
-      'relay_target': relayData['target'],
-      'relay_transmission_time': relayData['transmission_time'],
-      'relay_ttl': relayData['ttl'],
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      "relay_messages", 
+      dataToInsert, 
+      conflictAlgorithm: ConflictAlgorithm.replace
+    );
   }
 
   Future<List<Map<String, dynamic>>> getRelayMessagesForDebug() async {
@@ -133,7 +130,7 @@ class DatabaseHelper {
     try {
       final List<Map<String, dynamic>> maps = await db.query(
         "relay_messages",
-        orderBy: 'relay_received_at DESC',
+        orderBy: 'id DESC',
       );
       return maps;
     } catch (e) {

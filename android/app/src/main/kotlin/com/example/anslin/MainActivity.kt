@@ -140,7 +140,7 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-            fun relayMessage(
+            fun relayMessage( //中継メッセージを再構築し、Dartへ送る
                     message: String,
                     toPhoneNumber: String,
                     messageType: String,
@@ -149,19 +149,11 @@ class MainActivity : FlutterActivity() {
                     timestampString: String
             ) {
                 val newTTL = TTL - 1
-                val relayDataMap =
-                        mapOf(
-                                "content" to message,
-                                "from" to fromPhoneNumber,
-                                "type" to messageType,
-                                "target" to toPhoneNumber,
-                                "transmission_time" to timestampString,
-                                "ttl" to newTTL.toString()
-                        )
+                val relayString = "$message;$fromPhoneNumber;$messageType;$toPhoneNumber;$newTTL;$timestampString"
                 runOnUiThread() {
                     if (::channel.isInitialized) {
                         // dart側の 'saveRelayMessage' メソッドを呼び出す
-                        channel.invokeMethod("saveRelayMessage", relayDataMap)
+                        channel.invokeMethod("saveRelayMessage", relayString)
                     } else {
                         println("MethodChannelが初期化されていません。")
                     }
