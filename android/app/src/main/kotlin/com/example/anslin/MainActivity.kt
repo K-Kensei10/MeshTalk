@@ -167,7 +167,7 @@ class MainActivity : FlutterActivity() {
             relayMessage(message,toPhoneNumber,messageType,fromPhoneNumber,TTL,timestampString)
           }
         }
-      }else -> println(" [不明] メッセージタイプです。内容: $message")
+      　else -> println(" [不明] メッセージタイプです。内容: $message")
     }catch(e: Exception) {
       println("データ処理中にエラーが発生しました: ${e.message}")
     }

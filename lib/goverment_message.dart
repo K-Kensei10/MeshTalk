@@ -33,8 +33,7 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
   Future<void> _sendMessage() async {
     final message = _messageController.text;
 
-    if (message.isNotEmpty &&
-        myPhoneNumber!.isNotEmpty) {
+    if (message.isNotEmpty && myPhoneNumber!.isNotEmpty) {
       try {
         await methodChannel.invokeMethod<String>('startSendMessage', {
           'message': message,
@@ -43,20 +42,20 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
           'toPhoneNumber': "00000000000",
         });
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("メッセージを送信しました")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("メッセージを送信しました")),
+        );
       } on Exception catch (e) {
         debugPrint("送信エラー: $e");
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("エラーが発生しました。もう一度お試しください")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("エラーが発生しました。もう一度お試しください")),
+        );
       }
     } else if (myPhoneNumber == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("エラーが発生しました。アプリを再起動してください")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("エラーが発生しました。アプリを再起動してください")),
+      );
     }
   }
 
@@ -79,9 +78,8 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
                       labelText: "件名",
                       border: OutlineInputBorder(),
                     ),
-                    items: ["救助要請", "物資要請", "けが人の報告", "その他"].map((
-                      String subject,
-                    ) {
+                    items: ["救助要請", "物資要請", "けが人の報告", "その他"]
+                        .map((String subject) {
                       return DropdownMenuItem<String>(
                         value: subject,
                         child: Text(subject),
@@ -119,15 +117,16 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
                   onPressed: () {
                     if (selectedSubject != null &&
                         _messageController.text.isNotEmpty) {
-                      //Kotlin呼び出しmessage
                       _sendMessage();
 
-                      AppData.receivedMessages.add({
+                      AppData.receivedMessages.value.add({
                         "subject": selectedSubject!,
                         "detail": _messageController.text,
                         "time":
                             "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
                       });
+                      AppData.receivedMessages.notifyListeners();
+
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("メッセージを送信しました")),
@@ -174,52 +173,59 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
           ),
           const Divider(),
           Expanded(
-            child: AppData.officialAnnouncements.isEmpty
-                ? const Center(child: Text("まだお知らせはありません"))
-                : ListView.builder(
-                    itemCount: AppData.officialAnnouncements.length,
-                    itemBuilder: (context, index) {
-                      final msg = AppData.officialAnnouncements[index];
-                      return Card(
-                        color: Colors.lightBlue[50],
-                        margin: const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 8,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.info, color: Colors.blue),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    "公式情報",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
-                                    ),
+            child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+              valueListenable: AppData.officialAnnouncements,
+              builder: (context, announcements, _) {
+                if (announcements.isEmpty) {
+                  return const Center(child: Text("まだお知らせはありません"));
+                }
+
+                return ListView.builder(
+                  itemCount: announcements.length,
+                  itemBuilder: (context, index) {
+                    final msg = announcements[index];
+                    return Card(
+                      color: Colors.lightBlue[50],
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 8,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.info, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "公式情報",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
                                   ),
-                                  const Spacer(),
-                                  Text(
-                                    msg["time"] ?? "",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  msg["time"] ?? "",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(msg["text"] ?? ""),
-                            ],
-                          ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(msg["text"] ?? ""),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

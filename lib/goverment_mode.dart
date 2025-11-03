@@ -43,11 +43,12 @@ class _GovernmentHostPageState extends State<GovernmentHostPage> {
                 ElevatedButton(
                   onPressed: () {
                     if (messageController.text.isNotEmpty) {
-                      AppData.officialAnnouncements.insert(0, {
+                      AppData.officialAnnouncements.value.insert(0, {
                         "text": messageController.text,
                         "time":
                             "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
                       });
+                      AppData.officialAnnouncements.notifyListeners();
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("公式メッセージを送信しました")),
@@ -66,6 +67,8 @@ class _GovernmentHostPageState extends State<GovernmentHostPage> {
 
   @override
   Widget build(BuildContext context) {
+    final receivedMessages = AppData.receivedMessages.value;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("ホストモード - 自治体管理画面"),
@@ -90,10 +93,10 @@ class _GovernmentHostPageState extends State<GovernmentHostPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Divider(),
-            if (AppData.receivedMessages.isEmpty)
+            if (receivedMessages.isEmpty)
               const Center(child: Text("受信メッセージはありません"))
             else
-              ...AppData.receivedMessages.map((msg) {
+              ...receivedMessages.map((msg) {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
