@@ -105,25 +105,25 @@ class MainActivity : FlutterActivity() {
             }
         }
         MessageBridge.registerActivityHandler { receivedData ->
-            runOnUiThread() { messageSeparete(receivedData) }
+            runOnUiThread() { messageSeparate(receivedData) }
         }
     }
 
-    fun messageSeparete(receivedString: String) {
+    fun messageSeparate(receivedString: String) {
         println("▶データ処理を開始します...")
         try {
             // message;to_phone_number;message_type;from_phone_number;TTL;TimeStamp
-            val SeparetedString: List<String> = receivedString.split(";")
-            if (SeparetedString.size != 6) {
+            val SeparatedString: List<String> = receivedString.split(";")
+            if (SeparatedString.size != 6) {
                 println("メッセージの形式が無効です。")
                 return
             }
-            val message = SeparetedString[0]
-            val toPhoneNumber = SeparetedString[1]
-            val messageType = SeparetedString[2]
-            val fromPhoneNumber = SeparetedString[3]
-            val TTL = SeparetedString[4].toInt()
-            val timestampString = SeparetedString[5]
+            val message = SeparatedString[0]
+            val toPhoneNumber = SeparatedString[1]
+            val messageType = SeparatedString[2]
+            val fromPhoneNumber = SeparatedString[3]
+            val TTL = SeparatedString[4].toInt()
+            val timestampString = SeparatedString[5]
             val dataForFlutter = listOf(message, messageType, fromPhoneNumber, timestampString)
             val prefs =
                     context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
