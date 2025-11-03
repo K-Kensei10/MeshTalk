@@ -90,6 +90,17 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                 }
+                "routeMessageBridge" -> {
+                  val message = call.argument<String>("message") ?: ""
+                  val phoneNum = call.argument<String>("myPhoneNumber") ?: ""
+                  val messageType = call.argument<String>("messageType") ?: ""
+                  val toPhoneNumber = call.argument<String>("toPhoneNumber") ?: ""
+                  val TTL = "150"
+
+                  val messageData =
+                            CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL)
+                  MessageBridge.onMessageReceived(messageData)
+                }
                 else -> result.notImplemented()
             }
         }
