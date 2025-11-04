@@ -5,6 +5,8 @@ import 'package:anslin/snack_bar.dart';
 import 'package:anslin/main.dart';
 import 'databasehelper.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 String? myPhoneNumber;
 
@@ -99,14 +101,107 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     }
   }
 
-  Future<void> _sendMessage() async {
+  //位置情報の送信有無
+  bool _sendLocationInModal = false;
+
+  //位置情報の取得
+  Future<Position?> _getCurrentLocation(BuildContext context) async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    //位置情報サービスの有効化確認
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        showSnackbar(context, '位置情報サービスがオフになっています。オンにしてください。', 3,
+            backgroundColor: Colors.red);
+      }
+      return null; 
+    }
+
+    //位置情報権限の確認
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          showSnackbar(
+            context,
+            '位置情報の権限が拒否されました。',
+            3,
+            backgroundColor: Colors.red,
+          );
+        }
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if(mounted) {
+        showSnackbar(
+            context, '位置情報の権限が永久に拒否されました。設定から許可してください。', 3,
+            backgroundColor: Colors.red);
+      }
+      return null;
+    }
+
+    try {
+      if (mounted) {
+        showSnackbar(context, '現在地を取得中...', 2);
+      }
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+    } catch (e) {
+      print("❌ GPSの取得に失敗: $e");
+      if (mounted) {
+        showSnackbar(
+          context,
+          'GPSの取得に失敗しました: $e',
+          3,
+          backgroundColor: Colors.red,
+        );
+      }
+      return null;
+    }
+  }
+
+  Future<void> _sendMessage(
+    BuildContext dialogContext,
+    TextEditingController recipientController,
+    TextEditingController messageController,
+  ) async {
     final toPhoneNumber = _recipientController.text;
     final message = _messageController.text;
+    String? coordinatesString;
 
     if (toPhoneNumber.isNotEmpty &&
         message.isNotEmpty &&
         myPhoneNumber!.isNotEmpty) {
       //message; to_phone_number; message_type; from_phone_number; TTL
+
+      if (_sendLocationInModal) {
+      // 位置情報取得
+      final Position? pos = await _getCurrentLocation(context);
+      if (pos == null) {
+        // GPS取得失敗
+        if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("GPS取得に失敗したため、送信を中止しました。"), backgroundColor: Colors.red),
+          );
+        }
+         return; 
+      }
+      // 緯度|経度 の文字列にする
+      coordinatesString = "${pos.latitude}|${pos.longitude}";
+    }
+    String messageToSend = message;
+    if (coordinatesString != null) {
+      // スイッチONで座標が取れていたら; で結合
+      messageToSend = "$message;$coordinatesString";
+    }
+
       try {
         // 通信中SnackBar（グルグル付き）
         _receivingSnackBar = showSnackbar(
@@ -120,8 +215,8 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           ),
         );
         final String? result = await methodChannel
-            .invokeMethod<String>('routeMessageBridge', {
-              'message': message,
+            .invokeMethod<String>('startSendMessage', {
+              'message': messageToSend,
               'myPhoneNumber': myPhoneNumber,
               'messageType': 'SafetyCheck',
               'toPhoneNumber': toPhoneNumber,
@@ -129,6 +224,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         final messageDataMap = {
           'type': '2', // 安否確認 (Type 2)
           'content': '宛先: $toPhoneNumber\n内容: $message',
+          'coordinates': coordinatesString,
           'from': 'SELF_SENT_SAFETY_CHECK', // (自分だとわかる特殊な文字列)
         };
         if (!mounted) return;
@@ -177,52 +273,80 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
   }
 
   void _showPostModal() {
+    final TextEditingController recipientController = TextEditingController();
+    final TextEditingController messageController = TextEditingController();
+    _sendLocationInModal = false;
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("新しい投稿"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _recipientController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: "宛先（電話番号）"),
+        return StatefulBuilder(
+          builder: (BuildContext dialogContext, StateSetter setModalState) {
+            return AlertDialog(
+              title: const Text("新しい投稿"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _recipientController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: "宛先（電話番号）"),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _messageController,
+                    decoration: const InputDecoration(
+                      hintText: "メッセージを入力してください (50文字以内)",
+                    ),
+                    maxLength: _sendLocationInModal ? 40 : 50,
+                  ),
+                  SwitchListTile(
+                    title: const Text('位置情報を送信'),
+                    subtitle: Text(
+                      _sendLocationInModal ? '(残り40文字)' : '(残り50文字)',
+                    ),
+                    value: _sendLocationInModal, // 変数と連動
+                    onChanged: (bool value) {
+                      setModalState(() {
+                        _sendLocationInModal = value;
+                        if (_messageController.text.length > (_sendLocationInModal ? 40 : 50)) {
+                         _messageController.text = _messageController.text.substring(0, (_sendLocationInModal ? 40 : 50));
+                      }
+                      });
+                    },
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _messageController,
-                maxLength: 50,
-                decoration: const InputDecoration(
-                  hintText: "メッセージを入力してください (50文字以内)",
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("キャンセル"),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("キャンセル"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final phoneNumber = _recipientController.text.replaceAll(
-                  '-',
-                  '',
-                );
-                final message = _messageController.text;
-                if ((phoneNumber.length == 10 || phoneNumber.length == 11) &&
-                    message.isNotEmpty) {
-                  Navigator.of(context).pop();
-                  _sendMessage();
-                } else {
-                  showSnackbar(context, "有効な宛先とメッセージを入力してください", 3);
-                }
-              },
-              child: const Text("送信"),
-            ),
-          ],
+                ElevatedButton(
+                  onPressed: () async {
+                    final phoneNumber = _recipientController.text.replaceAll(
+                      '-',
+                      '',
+                    );
+                    final message = _messageController.text;
+                    if ((phoneNumber.length == 10 ||
+                            phoneNumber.length == 11) &&
+                        message.isNotEmpty) {
+                      Navigator.of(context).pop();
+                      _sendMessage(
+                        dialogContext,
+                        recipientController,
+                        messageController,
+                      );
+                    } else {
+                      showSnackbar(context, "有効な宛先とメッセージを入力してください", 3);
+                    }
+                  },
+                  child: const Text("送信"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
