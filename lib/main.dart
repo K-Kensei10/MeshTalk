@@ -328,12 +328,12 @@ class _MainPageState extends State<MainPage> {
       if (call.method == "saveRelayMessage") {
         try {
           //Kotlinから渡された引数をMapに変換
-          final Map<String, dynamic> relayData = Map<String, dynamic>.from(call.arguments);
+          final Map<String, dynamic> relayString = Map<String, dynamic>.from(call.arguments);
           
           //DBに中継メッセージを保存
-          await DatabaseHelper.instance.insertRelayMessage(relayData);
+          await DatabaseHelper.instance.insertRelayMessage(relayString);
           
-          print(" [Dart] 中継メッセージをDBに保存しました: $relayData");
+          print(" [Dart] 中継メッセージをDBに保存しました: $relayString");
 
         } catch (e) {
           print("❌ [Dart] 中継メッセージのDB保存に失敗: $e");

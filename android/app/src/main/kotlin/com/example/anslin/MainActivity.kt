@@ -440,30 +440,40 @@ class MainActivity : FlutterActivity() {
             val MY_PHONE_NUMBER = prefs.getString("flutter.my_phone_number", null)
         println("▶データ処理を開始します...")
         try {
-             // cleanedStringの定義を追加 (元コードになかったため追加)
             val cleanedString = receivedString.removeSurrounding("[", "]")
             val parts = cleanedString.split(";")
 
-            val message = parts[0]
-            val to_phone_number = parts[1]
-            val message_type = parts[2]
-            val from_phone_number = parts[3]
-            val TTL = parts[4].toInt()
-            val timestampString = parts[5]
-            var coordinatesToDart: String? = null // null許容 ("緯度|経度")
+            val message: String
+            val to_phone_number: String
+            val message_type: String
+            val from_phone_number: String
+            val TTL: Int
+            val timestampString: String
+            var coordinatesToDart: String? = null
 
-            if (parts.size == 8) {
-                // 位置情報あり (8個)
-                val latitude = parts[6] // 緯度
-                val longitude = parts[7] // 経度
-                coordinatesToDart = "$latitude|$longitude" 
-                println(" [受信] 位置情報あり (8個)")
-            } else if (parts.size == 6) {
-                // 位置情報なし (6個)
-                coordinatesToDart = null
-                println(" [受信] 位置情報なし (6個)")
+            if (parts.size == 6){
+            message = parts[0]
+            to_phone_number = parts[1]
+            message_type = parts[2]
+            from_phone_number = parts[3]
+            TTL = parts[4].toInt()
+            timestampString = parts[5]
+            coordinatesToDart = null
+            println(" [受信] 位置情報なし (6個)")
             }
-
+             else if (parts.size == 7) {
+            message = parts[0]
+            coordinatesToDart = parts[1] 
+            to_phone_number = parts[2]
+            message_type = parts[3]
+            from_phone_number = parts[4]
+            TTL = parts[5].toInt()
+            timestampString = parts[6]
+            println(" [受信] 位置情報あり (7個)")
+            } else {
+                println("予期せぬデータ形式")
+            return
+            }
             println(" [受信] type:$message_type, to:$to_phone_number, from:$from_phone_number, TTL:$TTL, 日時:$timestampString, message:$message, 座標:$coordinatesToDart")
 
             val dataForFlutter = listOf(
@@ -522,7 +532,7 @@ class MainActivity : FlutterActivity() {
                     displayMessageOnFlutter(dataForFlutter)
 
                     if (TTL > 0){
-                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString,coordinatesToDart)
+                        relayMessage(message, to_phone_number, message_type, from_phone_number, TTL, timestampString, coordinatesToDart)
                         println("  -> TTLが残っているため、他の端末へ転送します。")
                     }
                 }
@@ -551,45 +561,26 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun relayMessage(
-        message: String,
-        to_phone_number: String,
-        message_type: String,
-        from_phone_number: String,
-        TTL: Int,
-        timestampString: String,
-        coordinatesToDart: String?
-    ) {
-        println("▶中継DBへの保存処理を開始します...")
-        
-        val newTTL = TTL - 1
-        if (newTTL > 0) {
-            println(" -> TTLを1減らしました。新しいTTL: $newTTL")
-        } else {
-            println(" -> TTLが0になったため、中継は行いません。")
-            return
-        }
-        val relayDataMap = mapOf(
-            "content" to message,
-            "from" to from_phone_number,
-            "type" to message_type,
-            "target" to to_phone_number,
-            "transmission_time" to timestampString,
-            "ttl" to newTTL,
-            "coordinates" to coordinatesToDart
-        )
-
-        println("Dartに中継DBへの保存を依頼: $relayDataMap")
-
-        runOnUiThread {
-             if (::channel.isInitialized) {
-                // dart側の 'saveRelayMessage' メソッドを呼び出す
-                channel.invokeMethod("saveRelayMessage", relayDataMap)
-             } else {
-                println("❗️ MethodChannelが初期化されていません。")
-             }
-        }
-    }
+    fun relayMessage( //中継メッセージを再構築し、Dartへ送る
+                    message: String,
+                    toPhoneNumber: String,
+                    messageType: String,
+                    fromPhoneNumber: String,
+                    TTL: Int,
+                    timestampString: String,
+                    coordinatesToDart: String?
+            ) {
+                val newTTL = TTL - 1
+                    val relayString = "$message;${if (coordinatesToDart != null) "$coordinatesToDart;" else ""}$fromPhoneNumber;$messageType;$toPhoneNumber;$newTTL;$timestampString"
+                runOnUiThread() {
+                    if (::channel.isInitialized) {
+                        // dart側の 'saveRelayMessage' メソッドを呼び出す
+                        channel.invokeMethod("saveRelayMessage", relayString)
+                    } else {
+                        println("MethodChannelが初期化されていません。")
+                    }
+                }
+            }
             // メンバ変数（Bluetoothのレシーバー）
     private lateinit var bluetoothReceiver: BluetoothStateReceiver
     // ライフサイクル：画面が表示されたとき

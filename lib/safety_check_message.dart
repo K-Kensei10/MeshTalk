@@ -288,14 +288,14 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                     backgroundColor: Colors.orange, // ボタンの色をオレンジに
                   ),
                   child: const Text(
-                    '安否確認テスト実行',
+                    '安否確認テスト実行座標あり',
                     style: TextStyle(color: Colors.white),
                   ),
                   onPressed: () async {
                     // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
                     try {
                       const messagedata =
-                          "Flutterからのテスト;01234567890;2;080-1111-2222;3;202501010000;37.423717;-122.076796";
+                          "Flutterからのテスト;37.423717|-122.076796;01234567890;2;080-1111-2222;3;202501010000";
                       final result = await methodChannel.invokeMethod(
                         'routeToMessageBridge',
                         messagedata,
@@ -309,6 +309,35 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                     }
                   },
                 ),
+
+                const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange, // ボタンの色をオレンジに
+                  ),
+                  child: const Text(
+                    '安否確認テスト実行座標なし',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: () async {
+                    // ボタンが押されたら、Kotlin側の 'runJsonTest' 命令を呼び出す
+                    try {
+                      const messagedata =
+                          "Flutterからのテスト;01234567890;2;080-1111-2222;3;202501010000";
+                      final result = await methodChannel.invokeMethod(
+                        'routeToMessageBridge',
+                        messagedata,
+                      );
+                      // 画面下にメッセージを表示
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(result)));
+                    } catch (e) {
+                      print('テスト呼び出し中にエラー: $e');
+                    }
+                  },
+                ),
+
                 const SizedBox(height: 20), // ボタンとの間に少し隙間を空ける
 
                 ElevatedButton(
@@ -664,7 +693,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
       future: Geolocator.getCurrentPosition(
         // 位置情報を取得
         desiredAccuracy: LocationAccuracy.medium, // 中精度でOK
-        timeLimit: const Duration(seconds: 5), // タイムアウト5秒
+        timeLimit: const Duration(seconds: 60), // タイムアウト60秒
       ),
       builder: (context, snapshot) {
         // snapshot に取得結果が入る
