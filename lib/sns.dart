@@ -73,50 +73,52 @@ class _ShelterSNSPageState extends State<ShelterSNSPage> {
         centerTitle: true,
         title: const Text("避難所SNS"),
       ),
-      body: ValueListenableBuilder<List<Map<String, dynamic>>>(
-        valueListenable: AppData.snsPosts,
-        builder: (context, posts, _) {
-          final recentPosts = posts.where((post) {
-            final postTime = post['timestamp'] as DateTime? ?? DateTime.now();
-            return DateTime.now().difference(postTime).inHours < 3;
-          }).toList();
+      body: Column(
+        children: [
+          const Divider(),
+          Expanded(
+            child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+              valueListenable: AppData.snsPosts,
+              builder: (context, posts, _) {
+                final recentPosts = posts.where((post) {
+                  final postTime = post['timestamp'] as DateTime? ?? DateTime.now();
+                  return DateTime.now().difference(postTime).inHours < 3;
+                }).toList();
 
-          if (recentPosts.isEmpty) {
-            return const Center(child: Text("まだ投稿はありません"));
-          }
+                if (recentPosts.isEmpty) {
+                  return const Center(child: Text("まだ投稿はありません"));
+                }
 
-          return ListView.builder(
-            itemCount: recentPosts.length,
-            itemBuilder: (context, index) {
-              final post = recentPosts[index];
-              final text = post["text"] as String? ?? "";
-              final time = post["timestamp"] as DateTime? ?? DateTime.now();
+                return ListView.builder(
+                  itemCount: recentPosts.length,
+                  itemBuilder: (context, index) {
+                    final post = recentPosts[index];
+                    final text = post["text"] as String? ?? "";
+                    final time = post["timestamp"] as DateTime? ?? DateTime.now();
 
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(text, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(height: 8),
-                      Text(
-                        "投稿時間: ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}",
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(text, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(height: 8),
+                            Text(
+                              "投稿時間: ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}",
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showPostModal,
-        tooltip: '新しい投稿',
-        child: const Icon(Icons.add),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

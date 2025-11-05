@@ -100,34 +100,41 @@ class _PhoneInputPageState extends State<PhoneInputPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(centerTitle: true,title: const Text("電話番号入力")),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "災害時の安否確認のため、電話番号を入力してください。",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: "電話番号",
-                hintText: "例:09012345678",
-                border: const OutlineInputBorder(),
-                errorText: _errorText,
+      body: Column(
+        children: [
+          const Divider(),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "災害時の安否確認のため、電話番号を入力してください。",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: "電話番号",
+                      hintText: "例:09012345678",
+                      border: const OutlineInputBorder(),
+                      errorText: _errorText,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _validateAndShowDialog,
+                    child: const Text("ログイン"),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _validateAndShowDialog,
-              child: const Text("ログイン"),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
