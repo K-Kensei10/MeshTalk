@@ -168,7 +168,6 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
       ),
       body: Column(
         children: [
-          const Divider(),
           Expanded(
             child: ValueListenableBuilder<List<Map<String, dynamic>>>(
               valueListenable: AppData.officialAnnouncements,

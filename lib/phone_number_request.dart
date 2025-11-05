@@ -102,7 +102,6 @@ class _PhoneInputPageState extends State<PhoneInputPage> {
       appBar: AppBar(centerTitle: true,title: const Text("電話番号入力")),
       body: Column(
         children: [
-          const Divider(),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(20.0),

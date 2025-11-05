@@ -75,7 +75,6 @@ class _ShelterSNSPageState extends State<ShelterSNSPage> {
       ),
       body: Column(
         children: [
-          const Divider(),
           Expanded(
             child: ValueListenableBuilder<List<Map<String, dynamic>>>(
               valueListenable: AppData.snsPosts,
