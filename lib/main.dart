@@ -239,7 +239,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ANSLIN',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.blue, // アクセントカラー（AppBarやボタンなど）
+        scaffoldBackgroundColor: const Color(0xFFf5f5f5), // 背景色（画面全体）
         fontFamily: 'Noto Sans JP',
         useMaterial3: true,
       ),
