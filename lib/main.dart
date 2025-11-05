@@ -1,3 +1,4 @@
+import 'package:anslin/widgets/bluetoothStatus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -242,9 +243,11 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Noto Sans JP',
         useMaterial3: true,
       ),
-      home: hasPhoneNumber
+      home: BluetoothStateBanner(
+        child:hasPhoneNumber
           ? const MainPage() // hasPhoneNumber=true -> メインページ
           : const PhoneInputPage(), // hasPhoneNumber=false -> 電話番号入力ページ
+      )
     );
   }
 }
