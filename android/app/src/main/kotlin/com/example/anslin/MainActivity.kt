@@ -97,8 +97,7 @@ class MainActivity : FlutterActivity() {
                   val toPhoneNumber = call.argument<String>("toPhoneNumber") ?: ""
                   val TTL = "150"
 
-                  val messageData =
-                            CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL)
+                  val messageData = CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL)
                   MessageBridge.onMessageReceived(messageData)
                 }
                 else -> result.notImplemented()
@@ -113,7 +112,7 @@ class MainActivity : FlutterActivity() {
         println("▶データ処理を開始します...")
         try {
             // message;to_phone_number;message_type;from_phone_number;TTL;TimeStamp
-            val SeparatedString: List<String> = receivedString.split(";")
+            val SeparatedString: List<String> = receivedString.trim().split(";")
             if (SeparatedString.size != 6) {
                 println("メッセージの形式が無効です。")
                 return
@@ -439,6 +438,7 @@ class BluetoothLeController(public val activity: Activity) {
                         super.onScanFailed(errorCode)
                         Log.d("Scan", "スキャンに失敗しました（コード: $errorCode）")
                         isScanning = false
+                        scanner?.stopScan(mScanCallback)
                     }
                 }
         if (isScanning || scanner == null) {
@@ -697,7 +697,7 @@ class BluetoothLeController(public val activity: Activity) {
                         val data = rawData?.let { String(it, Charsets.UTF_8) } ?: ""
                         Log.d("BLE_READ", "受信メッセージ: $data")
                         scanResultCallback?.invoke(
-                                mapOf("status" to "RECEIVE_MESSAGE_SUCCESSFUL", "message" to data)
+                                mapOf("status" to "RECEIVE_MESSAGE_SUCCESSFUL", "data" to data)
                         )
                         bluetoothGatt?.disconnect()
                         bluetoothGatt?.close()
