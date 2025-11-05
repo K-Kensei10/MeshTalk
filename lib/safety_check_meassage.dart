@@ -253,6 +253,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           //メッセージを再描画する
           return Column(
             children: [
+              const Divider(),
               Expanded(
                 child: messages.isEmpty
                     ? const Center(child: Text("まだメッセージはありません"))
