@@ -99,7 +99,7 @@ class _PhoneInputPageState extends State<PhoneInputPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("電話番号入力")),
+      appBar: AppBar(centerTitle: true,title: const Text("電話番号入力")),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(

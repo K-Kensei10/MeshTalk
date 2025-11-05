@@ -145,7 +145,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           await AppData.loadSafetyCheckMessages();
           //入力文字リセット
           _recipientController.clear();
-          _messageController.dispose();
+          _messageController.clear();
         } else {
           _receivingSnackBar?.close();
           showSnackbar(
@@ -232,6 +232,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Text("安否確認"),
         actions: [
           IconButton(

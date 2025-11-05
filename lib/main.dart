@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:badges/badges.dart' as badges;
 import 'databasehelper.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 import 'package:anslin/phone_number_request.dart';
 import 'package:anslin/sns.dart';
@@ -260,6 +261,8 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
   int _selectedIndex = 0;
+  Timer? _timer;
+
 
   final List<Widget> _pages = [
     const ShelterSNSPage(),
@@ -289,6 +292,7 @@ class _MainPageState extends State<MainPage> {
   void initState() {
     super.initState();
 
+    _startGlobalTimer();
     _initPlatformListener();
 
     // 描画が終わったあとにダイアログを表示
@@ -307,7 +311,15 @@ class _MainPageState extends State<MainPage> {
     AppData.unreadSnsCount.removeListener(_resetIfVisible);
     AppData.unreadSafetyCheckCount.removeListener(_resetIfVisible);
     AppData.unreadOfficialCount.removeListener(_resetIfVisible);
+    _timer?.cancel();
     super.dispose();
+  }
+
+  //定期実行する関数
+    void _startGlobalTimer() {
+    _timer = Timer.periodic(Duration(seconds: 30), (Timer t) {
+      print('定期実行');
+    });
   }
 
   //現在のタブのカウンターを0にする関数

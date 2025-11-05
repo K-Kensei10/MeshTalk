@@ -441,7 +441,7 @@ class BluetoothLeController(public val activity: Activity) {
                         isScanning = false
                     }
                 }
-        if (!isScanning || scanner == null) {
+        if (isScanning || scanner == null) {
             Log.d("Scan", "通信中に予期せぬエラーが発生しました。")
             return
         }

@@ -35,7 +35,7 @@ class _HostAuthPageState extends State<HostAuthPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ホストモード認証")),
+      appBar: AppBar(centerTitle: true,title: const Text("ホストモード認証")),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(

@@ -151,6 +151,8 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text("自治体からのお知らせ"),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -166,11 +168,6 @@ class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
       ),
       body: Column(
         children: [
-          const SizedBox(height: 10),
-          const Text(
-            "自治体からのお知らせ",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
           const Divider(),
           Expanded(
             child: ValueListenableBuilder<List<Map<String, dynamic>>>(

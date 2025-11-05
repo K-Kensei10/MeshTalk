@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:anslin/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:anslin/snack_bar.dart';
+import 'package:anslin/main.dart';
+import 'databasehelper.dart';
+import 'package:intl/intl.dart';
 
 class ShelterSNSPage extends StatefulWidget {
   const ShelterSNSPage({super.key});
@@ -64,7 +69,10 @@ class _ShelterSNSPageState extends State<ShelterSNSPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("避難所SNS")),
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text("避難所SNS"),
+      ),
       body: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: AppData.snsPosts,
         builder: (context, posts, _) {

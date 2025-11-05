@@ -71,6 +71,7 @@ class _GovernmentHostPageState extends State<GovernmentHostPage> {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Text("ホストモード - 自治体管理画面"),
         backgroundColor: Colors.red[800],
       ),
