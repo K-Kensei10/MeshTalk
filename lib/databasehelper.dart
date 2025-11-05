@@ -57,6 +57,7 @@ class DatabaseHelper {
 
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
     final db = await instance.database;
+    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
 
     // DBに保存する Map を作成
     final Map<String, dynamic> dataToInsert = {
@@ -64,6 +65,7 @@ class DatabaseHelper {
       'content': messageData['content'],
       'sender_phone_number': messageData['from'],
       'is_read': 0,
+      'received_at': nowLocalString,
     };
 
     //「送信時間」キーが存在したら、それも Map に追加
@@ -116,6 +118,7 @@ class DatabaseHelper {
 
   Future<void> insertRelayMessage(Map<String, dynamic> relayData) async {
     final db = await instance.database;
+    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
 
     await db.insert("relay_messages", {
       'relay_content': relayData['content'],
@@ -124,6 +127,7 @@ class DatabaseHelper {
       'relay_target': relayData['target'],
       'relay_transmission_time': relayData['transmission_time'],
       'relay_ttl': relayData['ttl'],
+      'relay_received_at': nowLocalString,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -164,7 +168,7 @@ class DatabaseHelper {
       final cutoffDateTime = DateTime.now().subtract(
         Duration(hours: hoursAgo),
       ); // 現在時刻から指定時間を引く
-      final cutoffString = cutoffDateTime.toIso8601String(); // ISO 8601形式に変換
+      final cutoffString = cutoffDateTime.toIso8601String().substring(0, 19).replaceFirst('T', ' '); // ISO 8601形式に変換し、SQLiteのDATETIME形式に合わせる
       final count = await db.delete(
         // 'messages' テーブルから削除
         'messages',
