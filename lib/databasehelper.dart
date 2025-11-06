@@ -263,4 +263,35 @@ class DatabaseHelper {
       return null;
     }
   }
+
+  //送信キューのメッセージを削除する関数
+  Future<void> deleteOldestRelayMessage() async {
+    final db = await instance.database;
+    try {
+      // 一番古い（IDが最小）のデータを取得
+      final List<Map<String, dynamic>> result = await db.query(
+        'relay_messages',
+        columns: ['id'],
+        orderBy: 'id ASC',
+        limit: 1,
+      );
+
+      if (result.isNotEmpty) {
+        final int oldestId = result.first['id'] as int;
+
+        // 取得したIDのデータを削除
+        await db.delete(
+          'relay_messages',
+          where: 'id = ?',
+          whereArgs: [oldestId],
+        );
+
+        print('ID $oldestId のメッセージを削除しました');
+      } else {
+        print('削除対象のメッセージが存在しません');
+      }
+    } catch (e) {
+      print('メッセージの削除に失敗しました: $e');
+    }
+  }
 }

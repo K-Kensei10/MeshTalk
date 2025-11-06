@@ -326,7 +326,11 @@ class _MainPageState extends State<MainPage> {
     void _startGlobalTimer() {
     _timer = Timer.periodic(Duration(seconds: 30), (Timer t) {
       print('定期実行');
-      autoScan();
+      DatabaseHelper.instance.DatabaseCleanup();
+      if (connectedDeviceCount() <= 3) {
+        autoScan();
+        autoAdvertise();
+      }
     });
   }
 
@@ -447,4 +451,8 @@ void _checkAndRequestPermissions() async {
       await permission.request();
     }
   }
+}
+
+int connectedDeviceCount() {
+  return 3;
 }

@@ -7,3 +7,8 @@ Future<void> autoScan() async {
   const methodChannel = MethodChannel('anslin.flutter.dev/contact');
   
 }
+
+Future<void> autoAdvertise() async {
+  const methodChannel = MethodChannel('anslin.flutter.dev/contact');
+  
+}
