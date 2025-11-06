@@ -65,6 +65,10 @@ class DatabaseHelper {
     if (messageData.containsKey('transmission_time')) {
       dataToInsert['transmission_time'] = messageData['transmission_time'];
     }
+    if (messageData.containsKey('coordinates')) {// 'coordinates' キーが存在したら
+      //sender_coordinatesに、その値を入れる
+      dataToInsert['sender_coordinates'] = messageData['coordinates'];
+      }
 
     //  DBに保存する
     await db.insert(
@@ -233,6 +237,24 @@ class DatabaseHelper {
 
     } catch (e) {
       print('❌ [DB 中継削除] ID $id の削除中にエラー: $e');
+    }
+  }
+  Future<List<Map<String, dynamic>>> getAllMessagesForDebug() async {
+    final db = await instance.database;
+
+    try {
+      final List<Map<String, dynamic>> maps = await db.query(
+        "messages", // messagesテーブルを指定
+        orderBy: 'id DESC', // 新しいものから順に表示
+      );
+      print('✅ [DB Debug] messages テーブルから ${maps.length} 件のデータを読み込みました。');
+      // 取得したデータをそのままコンソールにも出力 (必要に応じて)
+      // maps.forEach((msg) => print(msg)); 
+      
+      return maps;
+    } catch (e) {
+      print("❌ [DB ERROR] 'messages' テーブルの読み込みに失敗: $e");
+      return []; // エラーが起きても空のリストを返す
     }
   }
 }
