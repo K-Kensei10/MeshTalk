@@ -20,6 +20,7 @@ class SafetyCheckPage extends StatefulWidget {
 class _SafetyCheckPageState extends State<SafetyCheckPage> {
   final TextEditingController _recipientController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
+  bool _sendLocationInModal = true;
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
   List<String> receivedMessages = [];
 
@@ -187,14 +188,12 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
   }
 
   void _showPostModal() {
-    _sendLocationInModal = true; // モーダル表示時に初期化
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext dialogContext, StateSetter setModalState) {
             // モーダル内で状態を管理するためのStatefulBuilder
-            bool sendLocation = _sendLocationInModal; // モーダル内のローカル変数
             return AlertDialog(
               title: const Text("新しい投稿"),
               content: Column(
@@ -208,7 +207,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _messageController,
-                    maxLength: sendLocation
+                    maxLength: _sendLocationInModal
                       ? 40
                       : 50, //字数の制限の変更
                     decoration: const InputDecoration(
@@ -216,12 +215,12 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                     ),
                   ),
                   SwitchListTile(
-                    title: Text('位置情報を送信 (${sendLocation ? 40 : 50}文字)'),
-                    value: sendLocation,
+                    title: Text('位置情報を送信 (${_sendLocationInModal ? 40 : 50}文字)'),
+                    value: _sendLocationInModal,
                     onChanged: (bool value) {
                       // 1. ダイアログのUIを更新
                       setModalState(() {
-                        sendLocation = value;
+                        _sendLocationInModal = value;
                       });
                       // 2. クラスの「連絡用」変数も更新
                       _sendLocationInModal = value;
@@ -241,10 +240,14 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                       '',
                     );
                     final message = _messageController.text;
+                    final int currentMaxLength = _sendLocationInModal ? 40 : 50;
                     if ((phoneNumber.length == 10 || phoneNumber.length == 11) &&
-                        message.isNotEmpty) {
+                        message.isNotEmpty &&
+                        message.length <= currentMaxLength) {
                       Navigator.of(context).pop();
                       _sendMessage();
+                    } else if (message.length > currentMaxLength) {
+                      showSnackbar(context, "メッセージは$currentMaxLength文字以内で入力してください", 3);
                     } else {
                       showSnackbar(context, "有効な宛先とメッセージを入力してください", 3);
                     }
