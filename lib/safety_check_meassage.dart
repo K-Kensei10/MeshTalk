@@ -344,6 +344,39 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                   },
                   child: const Text("送信"),
                 ),
+                const SizedBox(height: 20), // 上のボタンとの隙間
+
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal, 
+                    ),
+                    child: const Text(
+                      '中継DBテスト (1件取得 )',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onPressed: () async {
+                      final String? messageData =
+                          await DatabaseHelper.instance.getRelayMessage();
+                       if (messageData != null) {
+                        print("取得したデータ: $messageData");
+                      } else {
+                        print("中継DBは空でした。");
+                      }
+                    },
+                  ),
+                const SizedBox(height: 20,),
+
+                ElevatedButton(
+                  onPressed: () async{
+                  await methodChannel.invokeMethod<String>('routeMessageBridge', {
+              'message': "SNSテスト",
+              'myPhoneNumber': myPhoneNumber,
+              'messageType': 'SNS',
+              'toPhoneNumber': "00000000000",
+            });
+                },
+                child: const Text("SNSテスト")
+                ),
               ],
             );
           },

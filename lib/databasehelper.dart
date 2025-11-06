@@ -39,15 +39,13 @@ class DatabaseHelper {
       )
     '''); //UI表示用テーブル-自動採番ID-メッセージタイプ-メッセージ本文-送り主の電話番号-受信時間-送信時間-既読フラグ
 
-    await db.execute(
-      '''
+    await db.execute('''
       CREATE TABLE relay_messages (                             
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       relay_data TEXT NOT NULL,
       relay_received_at TEXT NOT NULL
       )
-    ''',
-    ); //中継機用テーブル-自動採番ID-中継用データ-中継機が「受信した時間」
+    '''); //中継機用テーブル-自動採番ID-中継用データ-中継機が「受信した時間」
   }
 
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
@@ -111,16 +109,19 @@ class DatabaseHelper {
 
   Future<void> insertRelayMessage(String relayString) async {
     final db = await instance.database;
-    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
+    final String nowLocalString = DateTime.now()
+        .toIso8601String()
+        .substring(0, 19)
+        .replaceFirst('T', ' ');
     final Map<String, dynamic> dataToInsert = {
-    'relay_data': relayString,
-    'relay_received_at': nowLocalString, // ★ JST時刻を保存
+      'relay_data': relayString,
+      'relay_received_at': nowLocalString, // ★ JST時刻を保存
     };
 
     await db.insert(
-      "relay_messages", 
-      dataToInsert, 
-      conflictAlgorithm: ConflictAlgorithm.replace
+      "relay_messages",
+      dataToInsert,
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
@@ -180,8 +181,9 @@ class DatabaseHelper {
 
       const whereClause = 'message_type = ?'; // メッセージタイプでフィルタリング
 
-      final countResult = await db.rawQuery( // 現在の件数を取得
-        'SELECT COUNT(*) FROM messages WHERE $whereClause',  
+      final countResult = await db.rawQuery(
+        // 現在の件数を取得
+        'SELECT COUNT(*) FROM messages WHERE $whereClause',
         [types],
       );
 
@@ -215,14 +217,16 @@ class DatabaseHelper {
       print('[DB;安否確認or自治体連絡] エラー: $e');
     }
   }
-  Future<void> deleterelayMessage(int id) async { //中継メッセージ削除
+
+  Future<void> deleterelayMessage(int id) async {
+    //中継メッセージ削除
     try {
       final db = await instance.database;
 
-      final count = await db.delete( 
+      final count = await db.delete(
         'relay_messages',
-        where: 'id = ?',   // IDで指定
-        whereArgs: [id],  
+        where: 'id = ?', // IDで指定
+        whereArgs: [id],
       );
 
       if (count > 0) {
@@ -230,9 +234,34 @@ class DatabaseHelper {
       } else {
         print('⚠️ [DB 中継削除] ID $id が見つかりませんでした。削除なし。');
       }
-
     } catch (e) {
       print('❌ [DB 中継削除] ID $id の削除中にエラー: $e');
+    }
+  }
+
+  Future<String?> getRelayMessage() async {
+    final db = await instance.database;
+
+    try {
+      // IDが一番小さいデータを1件取得
+      final List<Map<String, dynamic>> maps = await db.query(
+        "relay_messages", 
+        columns: ['relay_data'], //relay_dataカラムを取得
+        orderBy: 'id ASC',       //IDの昇順
+        limit: 1,                //1件
+      );
+
+      if (maps.isNotEmpty) {
+        final String messageData = maps.first['relay_data'] as String;
+        print("中継DBのdataを取得しました。$messageData");
+        return messageData;
+      } else {
+        print("中継DBは空です。");
+        return null;
+      }
+    } catch (e) {
+      print("中継メッセージの取得中にエラー: $e");
+      return null;
     }
   }
 }
