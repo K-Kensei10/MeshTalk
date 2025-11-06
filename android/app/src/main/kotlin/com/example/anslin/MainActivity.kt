@@ -28,6 +28,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
+import android.content.SharedPreferences
 
 val CONNECT_UUID = UUID.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
 val READ_CHARACTERISTIC_UUID = UUID.fromString("a3f9c1d2-96e9-45a1-90f2-e392533ef877")
@@ -38,11 +39,14 @@ val NOTIFY_CHARACTERISTIC_UUID = UUID.fromString("1d2e3f4a-96e9-45a1-90f2-e39253
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "anslin.flutter.dev/contact"
     private lateinit var channel: MethodChannel
-    val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-    val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
+    private lateinit var prefs: SharedPreferences
+    private var myPhoneNumber: String? = null
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
+
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 
         channel.setMethodCallHandler { call, result ->
