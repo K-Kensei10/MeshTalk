@@ -131,7 +131,7 @@ Widget buildDistanceInfo(String coordinates) {
       // 位置情報か null を返す
       future: Geolocator.getCurrentPosition(
         // 位置情報を取得
-        desiredAccuracy: LocationAccuracy.medium, // 中精度でOK
+        desiredAccuracy: LocationAccuracy.high, // 中精度でOKなわけねえぇだろぉおお
         timeLimit: const Duration(seconds: 5), // タイムアウト5秒
       ),
       builder: (context, snapshot) {
