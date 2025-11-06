@@ -35,7 +35,8 @@ class DatabaseHelper {
         sender_phone_number TEXT NOT NULL,
         received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         transmission_time TEXT NULL,
-        is_read INTEGER DEFAULT 0
+        is_read INTEGER DEFAULT 0,
+        sender_coordinates TEXT NULL
       )
     '''); //UI表示用テーブル-自動採番ID-メッセージタイプ-メッセージ本文-送り主の電話番号-受信時間-送信時間-既読フラグ
 
@@ -49,7 +50,8 @@ class DatabaseHelper {
       relay_target TEXT NOT NULL,
       relay_transmission_time TEXT NULL,
       relay_ttl INTEGER NOT NULL,
-      relay_received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      relay_received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      relay_sender_coordinates TEXT NULL
       )
     ''',
     ); //中継機用テーブル-自動採番ID-メッセージ本文-送り主の電話番号-メッセージタイプ-宛先の電話番号-送信時間-1減らした新しいTTL-中継機が「受信した時間」
@@ -71,6 +73,12 @@ class DatabaseHelper {
     //「送信時間」キーが存在したら、それも Map に追加
     if (messageData.containsKey('transmission_time')) {
       dataToInsert['transmission_time'] = messageData['transmission_time'];
+    }
+
+    //「緯度経度」キーが存在したら、Mapに追加
+    if (messageData.containsKey('coordinates')) {// 'coordinates' キーが存在したら
+      // DBの列名 'sender_coordinates' に、その値 (null か "緯度|経度") を入れる
+      dataToInsert['sender_coordinates'] = messageData['coordinates'];
     }
 
     //  DBに保存する
@@ -120,7 +128,7 @@ class DatabaseHelper {
     final db = await instance.database;
     final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
 
-    await db.insert("relay_messages", {
+    final Map<String, dynamic> dataToInsert = {
       'relay_content': relayData['content'],
       'relay_from': relayData['from'],
       'relay_type': relayData['type'],
@@ -128,7 +136,17 @@ class DatabaseHelper {
       'relay_transmission_time': relayData['transmission_time'],
       'relay_ttl': relayData['ttl'],
       'relay_received_at': nowLocalString,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    };
+
+    if (relayData.containsKey('coordinates')) {
+      // DBの 'relay_sender_coordinates' カラムに、その値を入れる
+      dataToInsert['relay_sender_coordinates'] = relayData['coordinates'];
+    }
+    await db.insert(
+      "relay_messages",
+      dataToInsert, 
+      conflictAlgorithm: ConflictAlgorithm.replace 
+    );
   }
 
   Future<List<Map<String, dynamic>>> getRelayMessagesForDebug() async {

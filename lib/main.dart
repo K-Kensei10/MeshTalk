@@ -65,9 +65,10 @@ class AppData {
     final type = data[1].toString();
     final phone = data[2] ?? "不明";
     final transmissionTimeStr = data.length > 3 ? data[3] as String? ?? "" : "";
+    final coordinates = data.length > 4 ? data[4] as String? : null;
 
     //ListをMapに変換
-    final messageDataMap = {'type': type, 'content': text, 'from': phone};
+    final messageDataMap = {'type': type, 'content': text, 'from': phone, 'coordinates': coordinates,};
     // 送信時間を取得してフォーマット
     if (transmissionTimeStr.isNotEmpty) {
       messageDataMap['transmission_time'] = transmissionTimeStr;
@@ -155,6 +156,8 @@ class AppData {
       final sender = dbRow['sender_phone_number'] as String;
       final content = dbRow['content'] as String;
 
+      final String? coordinates = dbRow['sender_coordinates'] as String?;// 送信者の座標情報 (null か "緯度|経度")
+
       if (sender == selfSentFlag) {
 
         final timeStr = "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(time)}"; //自分が送ったメッセージの送信日時
@@ -166,6 +169,7 @@ class AppData {
           'time': timeStr,
           'isSelf': true,
           'transmissionTime': null,
+          'coordinates': coordinates,
         };
       } else {
         // 他人から受信したメッセージ
@@ -178,6 +182,7 @@ class AppData {
           'time': timeStr,
           'isSelf': false,
           'transmissionTime': transmissionTimeStr,
+          'coordinates': coordinates,
         };
       }
     }).toList();
@@ -254,7 +259,7 @@ class MyApp extends StatelessWidget {
 //メインページ
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
-
+  
   @override
   State<MainPage> createState() => _MainPageState();
 }
@@ -355,11 +360,11 @@ class _MainPageState extends State<MainPage> {
       if (call.method == "saveRelayMessage") {
         try {
           //Kotlinから渡された引数をMapに変換
-          final Map<String, dynamic> relayData = Map<String, dynamic>.from(call.arguments);
+          final Map<String, dynamic> relayString = Map<String, dynamic>.from(call.arguments);
           
           //DBに中継メッセージを保存
-          await DatabaseHelper.instance.insertRelayMessage(relayData);
-          print(" [Dart] 中継メッセージをDBに保存しました: $relayData");
+          await DatabaseHelper.instance.insertRelayMessage(relayString);
+          print(" [Dart] 中継メッセージをDBに保存しました: $relayString");
         } catch (e) {
           print("[Dart] 中継メッセージのDB保存に失敗: $e");
         }

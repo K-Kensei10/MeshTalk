@@ -38,6 +38,8 @@ val NOTIFY_CHARACTERISTIC_UUID = UUID.fromString("1d2e3f4a-96e9-45a1-90f2-e39253
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "anslin.flutter.dev/contact"
     private lateinit var channel: MethodChannel
+    val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+    val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -67,13 +69,13 @@ class MainActivity : FlutterActivity() {
                 }
                 "startSendMessage" -> {
                     val message = call.argument<String>("message") ?: ""
-                    val phoneNum = call.argument<String>("myPhoneNumber") ?: ""
+                    val phoneNum = myPhoneNumber ?: "00000000000"
                     val messageType = call.argument<String>("messageType") ?: ""
                     val toPhoneNumber = call.argument<String>("toPhoneNumber") ?: ""
+                    val coordinates = call.argument<String>("coordinates") ?: ""
                     val TTL = "150"
 
-                    val messageData =
-                            CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL)
+                    val messageData = CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL, coordinates)
                     Log.d("Advertise", "$messageData")
                     val bleController = BluetoothLeController(this)
                     bleController.SendingMessage(messageData) { resultMap ->
@@ -90,16 +92,6 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                 }
-                "routeMessageBridge" -> {
-                  val message = call.argument<String>("message") ?: ""
-                  val phoneNum = call.argument<String>("myPhoneNumber") ?: ""
-                  val messageType = call.argument<String>("messageType") ?: ""
-                  val toPhoneNumber = call.argument<String>("toPhoneNumber") ?: ""
-                  val TTL = "150"
-
-                  val messageData = CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL)
-                  MessageBridge.onMessageReceived(messageData)
-                }
                 else -> result.notImplemented()
             }
         }
@@ -113,7 +105,7 @@ class MainActivity : FlutterActivity() {
         try {
             // message;to_phone_number;message_type;from_phone_number;TTL;TimeStamp
             val SeparatedString: List<String> = receivedString.trim().split(";")
-            if (SeparatedString.size != 6) {
+            if (SeparatedString.size != 6 && SeparatedString.size != 7) {
                 println("メッセージの形式が無効です。")
                 return
             }
@@ -123,13 +115,20 @@ class MainActivity : FlutterActivity() {
             val fromPhoneNumber = SeparatedString[3]
             val TTL = SeparatedString[4].toInt()
             val timestampString = SeparatedString[5]
-            val dataForFlutter = listOf(message, messageType, fromPhoneNumber, timestampString)
-            val prefs =
-                    context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
+            var coordinatesToDart: String? = null
+            if (SeparatedString.size == 7) {
+                // 位置情報あり (7個)
+                coordinatesToDart = SeparatedString[6]
+                println(" [受信] 位置情報あり ")
+            } else if (SeparatedString.size == 6) {
+                // 位置情報なし (6個)
+                coordinatesToDart = null
+                println(" [受信] 位置情報なし ")
+            }
+            val dataForFlutter = listOf(message, messageType, fromPhoneNumber, timestampString, coordinatesToDart)
             var isMessenger: Boolean = false
 
-            fun displayMessageOnFlutter(datalist: List<String>) {
+            fun displayMessageOnFlutter(datalist: List<String?>) {
                 runOnUiThread() {
                     if (::channel.isInitialized) {
                         channel.invokeMethod("displayMessage", datalist)
@@ -145,22 +144,18 @@ class MainActivity : FlutterActivity() {
                     messageType: String,
                     fromPhoneNumber: String,
                     TTL: Int,
-                    timestampString: String
+                    timestampString: String,
+                    coordinatesToDart: String?
             ) {
-                val newTTL = TTL - 1
-                val relayDataMap =
-                        mapOf(
-                                "content" to message,
-                                "from" to fromPhoneNumber,
-                                "type" to messageType,
-                                "target" to toPhoneNumber,
-                                "transmission_time" to timestampString,
-                                "ttl" to newTTL.toString()
-                        )
+                val newTTL = (TTL - 1).toString()
+                val relayData = when(coordinatesToDart){
+                  null -> listOf(message, toPhoneNumber, messageType, fromPhoneNumber, newTTL, timestampString).joinToString(";")
+                  else -> listOf(message, toPhoneNumber, messageType, fromPhoneNumber, newTTL, timestampString, coordinatesToDart).joinToString(";")
+                }
                 runOnUiThread() {
                     if (::channel.isInitialized) {
                         // dart側の 'saveRelayMessage' メソッドを呼び出す
-                        channel.invokeMethod("saveRelayMessage", relayDataMap)
+                        channel.invokeMethod("saveRelayMessage", relayData)
                     } else {
                         println("MethodChannelが初期化されていません。")
                     }
@@ -180,7 +175,8 @@ class MainActivity : FlutterActivity() {
                                 messageType,
                                 fromPhoneNumber,
                                 TTL,
-                                timestampString
+                                timestampString,
+                                coordinatesToDart
                         )
                     } else {
                         return
@@ -199,7 +195,8 @@ class MainActivity : FlutterActivity() {
                                     messageType,
                                     fromPhoneNumber,
                                     TTL,
-                                    timestampString
+                                    timestampString,
+                                    coordinatesToDart
                             )
                         } else {
                             return
@@ -218,7 +215,8 @@ class MainActivity : FlutterActivity() {
                                 messageType,
                                 fromPhoneNumber,
                                 TTL,
-                                timestampString
+                                timestampString,
+                                coordinatesToDart
                         )
                     } else {
                         return
@@ -236,7 +234,8 @@ class MainActivity : FlutterActivity() {
                                 messageType,
                                 fromPhoneNumber,
                                 TTL,
-                                timestampString
+                                timestampString,
+                                coordinatesToDart
                         )
                     } else {
                         return
@@ -275,9 +274,10 @@ fun CreateMessageFormat(
         phoneNum: String,
         messageType: String,
         toPhoneNumber: String,
-        TTL: String
+        TTL: String,
+        coordinates: String
 ): String {
-    // message; to_phone_number; message_type; from_phone_number; TTL
+    // message; to_phone_number; message_type; from_phone_number; TTL; coordinates
     val messageTypeCode: String =
             when (messageType) {
                 "SNS" -> "1"
@@ -289,7 +289,11 @@ fun CreateMessageFormat(
     val currentDateTime = LocalDateTime.now()
     val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
     val TimeStamp = currentDateTime.format(formatter)
-    return listOf(message, toPhoneNumber, messageTypeCode, phoneNum, TTL, TimeStamp)
+    if (coordinates == "") {
+      return listOf(message, toPhoneNumber, messageTypeCode, phoneNum, TTL, TimeStamp)
+            .joinToString(";")
+    }
+    return listOf(message, toPhoneNumber, messageTypeCode, phoneNum, TTL, TimeStamp, coordinates)
             .joinToString(";")
 }
 
