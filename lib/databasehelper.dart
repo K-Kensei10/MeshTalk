@@ -35,7 +35,8 @@ class DatabaseHelper {
         sender_phone_number TEXT NOT NULL,
         received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         transmission_time TEXT NULL,
-        is_read INTEGER DEFAULT 0
+        is_read INTEGER DEFAULT 0,
+        sender_coordinates TEXT NULL
       )
     '''); //UI表示用テーブル-自動採番ID-メッセージタイプ-メッセージ本文-送り主の電話番号-受信時間-送信時間-既読フラグ
 
@@ -52,6 +53,7 @@ class DatabaseHelper {
 
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
     final db = await instance.database;
+    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
 
     // DBに保存する Map を作成
     final Map<String, dynamic> dataToInsert = {
@@ -59,6 +61,7 @@ class DatabaseHelper {
       'content': messageData['content'],
       'sender_phone_number': messageData['from'],
       'is_read': 0,
+      'received_at': nowLocalString,
     };
 
     //「送信時間」キーが存在したら、それも Map に追加
