@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:anslin/main.dart';
+import 'package:anslin/goverment_mode.dart';
 
-class HostAuthPageState extends State<HostAuthPage> {
+class HostAuthPage extends StatefulWidget {
+  const HostAuthPage({super.key});
+
+  @override
+  State<HostAuthPage> createState() => _HostAuthPageState();
+}
+
+class _HostAuthPageState extends State<HostAuthPage> {
   final TextEditingController _passwordController = TextEditingController();
   final String _correctPassword = "1234";
   String? _errorText;
@@ -28,7 +35,7 @@ class HostAuthPageState extends State<HostAuthPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ホストモード認証")),
+      appBar: AppBar(centerTitle: true,title: const Text("ホストモード認証")),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(

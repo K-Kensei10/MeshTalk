@@ -1,38 +1,61 @@
 import 'package:flutter/material.dart';
-import 'package:anslin/main.dart';
 import 'package:flutter/services.dart';
-import 'package:anslin/snack_bar.dart';
+import 'package:anslin/host_auth.dart';
+import 'package:anslin/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class LocalGovernmentPageState extends State<LocalGovernmentPage> {
+String? myPhoneNumber;
+
+class LocalGovernmentPage extends StatefulWidget {
+  const LocalGovernmentPage({super.key});
+
+  @override
+  State<LocalGovernmentPage> createState() => _LocalGovernmentPageState();
+}
+
+class _LocalGovernmentPageState extends State<LocalGovernmentPage> {
+  final TextEditingController _messageController = TextEditingController();
   static const methodChannel = MethodChannel('anslin.flutter.dev/contact');
 
-  void _sendMessage(
-    String message,
-    String phoneNum,
-    String messageType,
-    String targetPhoneNum,
-  ) async {
-    try {
-      final result = await methodChannel.invokeMethod<String>('sendMessage', {
-        'message': message,
-        'phoneNum': phoneNum,
-        'messageType': messageType,
-        'targetPhoneNum': targetPhoneNum,
-      });
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoneNumber();
+  }
 
-      if (!mounted) return; // ← ここで安全確認！
+  Future<void> _loadPhoneNumber() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      myPhoneNumber = prefs.getString('my_phone_number') ?? "00000000000";
+    });
+  }
 
-      handleScanResultAndShowSnackbar(result, context);
-    } on PlatformException catch (e) {
-      if (!mounted) return;
+  Future<void> _sendMessage() async {
+    final message = _messageController.text;
 
-      handleScanResultAndShowSnackbar(e, context);
-      debugPrint("$e");
-    } catch (e) {
-      if (!mounted) return;
-
-      handleScanResultAndShowSnackbar("unknown_error", context);
-      debugPrint("Unexpected error: $e");
+    if (message.isNotEmpty && myPhoneNumber!.isNotEmpty) {
+      try {
+        await methodChannel.invokeMethod<String>('startSendMessage', {
+          'message': message,
+          'myPhoneNumber': myPhoneNumber,
+          'messageType': 'ToLocalGovernment',
+          'toPhoneNumber': "00000000000",
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("メッセージを送信しました")),
+        );
+      } on Exception catch (e) {
+        debugPrint("送信エラー: $e");
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("エラーが発生しました。もう一度お試しください")),
+        );
+      }
+    } else if (myPhoneNumber == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("エラーが発生しました。アプリを再起動してください")),
+      );
     }
   }
 
@@ -41,7 +64,6 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
       context: context,
       builder: (context) {
         String? selectedSubject;
-        final TextEditingController detailController = TextEditingController();
         int charCount = 0;
 
         return StatefulBuilder(
@@ -56,9 +78,8 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
                       labelText: "件名",
                       border: OutlineInputBorder(),
                     ),
-                    items: ["救助要請", "物資要請", "けが人の報告", "その他"].map((
-                      String subject,
-                    ) {
+                    items: ["救助要請", "物資要請", "けが人の報告", "その他"]
+                        .map((String subject) {
                       return DropdownMenuItem<String>(
                         value: subject,
                         child: Text(subject),
@@ -70,7 +91,7 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: detailController,
+                    controller: _messageController,
                     maxLength: 50,
                     decoration: InputDecoration(
                       labelText: "詳細",
@@ -95,23 +116,17 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
                 ElevatedButton(
                   onPressed: () {
                     if (selectedSubject != null &&
-                        detailController.text.isNotEmpty) {
-                      //Kotlin呼び出しmessage
-                      _sendMessage(
-                        detailController.text, // message
-                        "000000000000",
-                        // AppData.myPhoneNum ?? "", // phoneNum
-                        selectedSubject ?? "その他", // messageType
-                        // AppData.governmentPhoneNum ?? "", // targetPhoneNum
-                        "09000000000",
-                      );
+                        _messageController.text.isNotEmpty) {
+                      _sendMessage();
 
-                      AppData.receivedMessages.add({
+                      AppData.receivedMessages.value.add({
                         "subject": selectedSubject!,
-                        "detail": detailController.text,
+                        "detail": _messageController.text,
                         "time":
                             "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}",
                       });
+                      AppData.receivedMessages.notifyListeners();
+
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("メッセージを送信しました")),
@@ -136,6 +151,8 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text("自治体からのお知らせ"),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -151,59 +168,60 @@ class LocalGovernmentPageState extends State<LocalGovernmentPage> {
       ),
       body: Column(
         children: [
-          const SizedBox(height: 10),
-          const Text(
-            "自治体からのお知らせ",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const Divider(),
           Expanded(
-            child: AppData.officialAnnouncements.isEmpty
-                ? const Center(child: Text("まだお知らせはありません"))
-                : ListView.builder(
-                    itemCount: AppData.officialAnnouncements.length,
-                    itemBuilder: (context, index) {
-                      final msg = AppData.officialAnnouncements[index];
-                      return Card(
-                        color: Colors.lightBlue[50],
-                        margin: const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 8,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.info, color: Colors.blue),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    "公式情報",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
-                                    ),
+            child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+              valueListenable: AppData.officialAnnouncements,
+              builder: (context, announcements, _) {
+                if (announcements.isEmpty) {
+                  return const Center(child: Text("まだお知らせはありません"));
+                }
+
+                return ListView.builder(
+                  itemCount: announcements.length,
+                  itemBuilder: (context, index) {
+                    final msg = announcements[index];
+                    return Card(
+                      color: Colors.lightBlue[50],
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 8,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.info, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "公式情報",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
                                   ),
-                                  const Spacer(),
-                                  Text(
-                                    msg["time"] ?? "",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  msg["time"] ?? "",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(msg["text"] ?? ""),
-                            ],
-                          ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(msg["text"] ?? ""),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

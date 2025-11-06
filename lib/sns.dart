@@ -1,8 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:anslin/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:anslin/snack_bar.dart';
+import 'package:anslin/main.dart';
+import 'databasehelper.dart';
+import 'package:intl/intl.dart';
 
-class ShelterSNSPageState extends State<ShelterSNSPage> {
-  final TextEditingController _postController = TextEditingController();
+class ShelterSNSPage extends StatefulWidget {
+  const ShelterSNSPage({super.key});
+
+  @override
+  State<ShelterSNSPage> createState() => _ShelterSNSPageState();
+}
+
+class _ShelterSNSPageState extends State<ShelterSNSPage> {
+  final TextEditingController _messageController = TextEditingController();
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
 
   void _showPostModal() {
     showDialog(
@@ -12,7 +30,7 @@ class ShelterSNSPageState extends State<ShelterSNSPage> {
         return AlertDialog(
           title: const Text("新しい投稿"),
           content: TextField(
-            controller: _postController,
+            controller: _messageController,
             maxLength: 50,
             decoration: const InputDecoration(
               hintText: "メッセージを入力してください (50文字以内)",
@@ -31,13 +49,12 @@ class ShelterSNSPageState extends State<ShelterSNSPage> {
             ElevatedButton(
               onPressed: () {
                 if (postText.isNotEmpty) {
-                  setState(() {
-                    AppData.snsPosts.insert(0, {
-                      "text": postText,
-                      "timestamp": DateTime.now(),
-                    });
+                  AppData.snsPosts.value.insert(0, {
+                    "text": postText,
+                    "timestamp": DateTime.now(),
                   });
-                  _postController.clear();
+                  AppData.snsPosts.notifyListeners();
+                  _messageController.clear();
                   Navigator.of(context).pop();
                 }
               },
@@ -51,52 +68,56 @@ class ShelterSNSPageState extends State<ShelterSNSPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 3時間以上前の投稿をフィルタリング
-    final recentPosts = AppData.snsPosts.where((post) {
-      final postTime = post['timestamp'] as DateTime;
-      return DateTime.now().difference(postTime).inHours < 3;
-    }).toList();
-
     return Scaffold(
-      appBar: AppBar(title: const Text("避難所SNS")),
-      body: recentPosts.isEmpty
-          ? const Center(child: Text("まだ投稿はありません"))
-          : ListView.builder(
-              itemCount: recentPosts.length,
-              itemBuilder: (context, index) {
-                final post = recentPosts[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 16,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post["text"],
-                          style: const TextStyle(fontSize: 16),
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text("避難所SNS"),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+              valueListenable: AppData.snsPosts,
+              builder: (context, posts, _) {
+                final recentPosts = posts.where((post) {
+                  final postTime = post['timestamp'] as DateTime? ?? DateTime.now();
+                  return DateTime.now().difference(postTime).inHours < 3;
+                }).toList();
+
+                if (recentPosts.isEmpty) {
+                  return const Center(child: Text("まだ投稿はありません"));
+                }
+
+                return ListView.builder(
+                  itemCount: recentPosts.length,
+                  itemBuilder: (context, index) {
+                    final post = recentPosts[index];
+                    final text = post["text"] as String? ?? "";
+                    final time = post["timestamp"] as DateTime? ?? DateTime.now();
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(text, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(height: 8),
+                            Text(
+                              "投稿時間: ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}",
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "投稿時間: ${post['timestamp'].hour.toString().padLeft(2, '0')}:${post['timestamp'].minute.toString().padLeft(2, '0')}",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showPostModal,
-        tooltip: '新しい投稿',
-        child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
