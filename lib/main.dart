@@ -360,7 +360,7 @@ class _MainPageState extends State<MainPage> {
       if (call.method == "saveRelayMessage") {
         try {
           //Kotlinから渡された引数をMapに変換
-          final Map<String, dynamic> relayString = Map<String, dynamic>.from(call.arguments);
+          final String relayString = call.arguments as String;
           
           //DBに中継メッセージを保存
           await DatabaseHelper.instance.insertRelayMessage(relayString);

@@ -40,12 +40,9 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "anslin.flutter.dev/contact"
     private lateinit var channel: MethodChannel
     private lateinit var prefs: SharedPreferences
-    private var myPhoneNumber: String? = null
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
 
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 
@@ -72,6 +69,8 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 "startSendMessage" -> {
+                    prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                    val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
                     val message = call.argument<String>("message") ?: ""
                     val phoneNum = myPhoneNumber ?: "00000000000"
                     val messageType = call.argument<String>("messageType") ?: ""
@@ -130,6 +129,8 @@ class MainActivity : FlutterActivity() {
                 println(" [受信] 位置情報なし ")
             }
             val dataForFlutter = listOf(message, messageType, fromPhoneNumber, timestampString, coordinatesToDart)
+            val prefs =context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
             var isMessenger: Boolean = false
 
             fun displayMessageOnFlutter(datalist: List<String?>) {
