@@ -235,4 +235,32 @@ class DatabaseHelper {
       print('❌ [DB 中継削除] ID $id の削除中にエラー: $e');
     }
   }
+
+
+  //送信キューのメッセージを選択する関数
+  Future<String?> getRelayMessage() async {
+    final db = await instance.database;
+
+    try {
+      // IDが一番小さいデータを1件取得
+      final List<Map<String, dynamic>> maps = await db.query(
+        "relay_messages", 
+        columns: ['relay_data'], //relay_dataカラムを取得
+        orderBy: 'id ASC',       //IDの昇順
+        limit: 1,                //1件
+      );
+
+      if (maps.isNotEmpty) {
+        final String messageData = maps.first['relay_data'] as String;
+        print("中継DBのdataを取得しました。$messageData");
+        return messageData;
+      } else {
+        print("中継DBは空です。");
+        return null;
+      }
+    } catch (e) {
+      print("中継メッセージの取得中にエラー: $e");
+      return null;
+    }
+  }
 }
