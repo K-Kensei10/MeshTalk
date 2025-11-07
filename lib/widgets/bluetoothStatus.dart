@@ -100,6 +100,7 @@ class _BluetoothStateBannerState extends State<BluetoothStateBanner> {
                         color: Colors.red, // ★ 文字色を赤に
                         decoration: TextDecoration.underline, // ★ 下線を表示
                         decorationColor: Colors.black, // ★ 下線の色を黒に変更
+                        decorationThickness: 1.0, // ★ 下線を一本に調整
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -113,4 +114,3 @@ class _BluetoothStateBannerState extends State<BluetoothStateBanner> {
     );
   }
 }
-
