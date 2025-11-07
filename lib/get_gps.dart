@@ -140,7 +140,7 @@ Widget buildDistanceInfo(String coordinates) {
       future: Geolocator.getCurrentPosition(
         // 位置情報を取得
         desiredAccuracy: LocationAccuracy.high, // 中精度でOKなわけねえぇだろぉおお
-        timeLimit: const Duration(seconds: 5), // タイムアウト5秒
+        timeLimit: const Duration(seconds: 25), // タイムアウト25秒
       ),
       builder: (context, snapshot) {
         // snapshot に取得結果が入る
