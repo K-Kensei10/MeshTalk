@@ -47,6 +47,7 @@ class DatabaseHelper {
     '''); //中継機用テーブル-自動採番ID-中継用データ-中継機が「受信した時間」
   }
 
+  //メッセージを保存する関数
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
     final db = await instance.database;
     final String nowLocalString = DateTime.now()

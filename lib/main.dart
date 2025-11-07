@@ -68,6 +68,12 @@ class AppData {
     final phone = data[2] ?? "不明";
     final transmissionTimeStr = data.length > 3 ? data[3] as String? ?? "" : "";
     final coordinates = data.length > 4 ? data[4] as String? : null;
+    final isDuplicate = await DatabaseHelper.instance.checkDuplicates(text, type, phone, transmissionTimeStr);
+
+    if (isDuplicate) {
+      print('重複メッセージのため保存をスキップ: $text');
+      return;
+    }
 
     //ListをMapに変換
     final messageDataMap = {
