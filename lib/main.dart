@@ -14,6 +14,7 @@ import 'package:anslin/safety_check_meassage.dart';
 import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
+import 'package:anslin/widgets/bluetoothStatus.dart';
 
 int globalTimerDuration = 10;
 
@@ -266,9 +267,11 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Noto Sans JP',
         useMaterial3: true,
       ),
-      home: hasPhoneNumber
+      home: BluetoothStateBanner(
+        child:hasPhoneNumber
           ? const MainPage() // hasPhoneNumber=true -> メインページ
           : const PhoneInputPage(), // hasPhoneNumber=false -> 電話番号入力ページ
+      )
     );
   }
 }
