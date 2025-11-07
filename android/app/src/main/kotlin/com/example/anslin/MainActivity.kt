@@ -685,6 +685,7 @@ class BluetoothLeController(public val activity: Activity) {
                         override fun onStartFailure(errorCode: Int) {
                             Log.e("Advertise", "アドバタイズ失敗: $errorCode")
                             advertiser.stopAdvertising(mAdvertiseCallback)
+                            ISADVERTISING = false
                             onResult(
                                     mapOf(
                                             "status" to "ADVERTISE_FAILED",
@@ -743,7 +744,11 @@ class BluetoothLeController(public val activity: Activity) {
                         Log.d("Gatt", "接続成功")
                         // gatt通信量のサイズ変更
                         gatt.requestMtu(512)
-                        handler.postDelayed({ gatt.discoverServices() }, 200)
+                    }
+                    if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                        Log.d("Gatt", "接続が切断されました")
+                        cleanupGatt()
+                        ISSCANNING = false
                     }
                 }
 
@@ -796,19 +801,19 @@ class BluetoothLeController(public val activity: Activity) {
                         scanResultCallback?.invoke(
                                 mapOf("status" to "RECEIVE_MESSAGE_SUCCESSFUL", "data" to data)
                         )
-                        bluetoothGatt?.disconnect()
-                        bluetoothGatt?.close()
-                        bluetoothGatt = null
+                        cleanupGatt()
+                        ISSCANNING = false
                     } else {
                         Log.e("BLE_READ", "読み取り失敗 status: $status")
+                        cleanupGatt()
                         ISSCANNING = false
-                        bluetoothGatt?.disconnect()
-                        bluetoothGatt?.close()
                     }
                 }
 
-                fun getSupportedGattServices(): List<BluetoothGattService?>? {
-                    return bluetoothGatt?.services
+                private fun cleanupGatt() {
+                  bluetoothGatt?.disconnect()
+                  bluetoothGatt?.close()
+                  bluetoothGatt = null
                 }
             }
 }

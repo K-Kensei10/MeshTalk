@@ -15,6 +15,8 @@ import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
 
+int globalTimerDuration = 10;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Flutterの初期化を待つ
   final prefs = await SharedPreferences.getInstance();
@@ -337,7 +339,7 @@ class _MainPageState extends State<MainPage> {
 
   //定期実行する関数
   void _startGlobalTimer() {
-    _timer = Timer.periodic(Duration(seconds: 10), (Timer t) {
+    _timer = Timer.periodic(Duration(seconds: globalTimerDuration), (Timer t) {
       print('定期実行');
       DatabaseHelper.instance.DatabaseCleanup();
       if (connectedDeviceCount() <= 3) {
