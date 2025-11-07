@@ -35,7 +35,8 @@ class DatabaseHelper {
         sender_phone_number TEXT NOT NULL,
         received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         transmission_time TEXT NULL,
-        is_read INTEGER DEFAULT 0
+        is_read INTEGER DEFAULT 0,
+        sender_coordinates TEXT NULL
       )
     '''); //UI表示用テーブル-自動採番ID-メッセージタイプ-メッセージ本文-送り主の電話番号-受信時間-送信時間-既読フラグ
 
@@ -52,6 +53,7 @@ class DatabaseHelper {
 
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
     final db = await instance.database;
+    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
 
     // DBに保存する Map を作成
     final Map<String, dynamic> dataToInsert = {
@@ -59,12 +61,17 @@ class DatabaseHelper {
       'content': messageData['content'],
       'sender_phone_number': messageData['from'],
       'is_read': 0,
+      'received_at': nowLocalString,
     };
 
     //「送信時間」キーが存在したら、それも Map に追加
     if (messageData.containsKey('transmission_time')) {
       dataToInsert['transmission_time'] = messageData['transmission_time'];
     }
+    if (messageData.containsKey('coordinates')) {// 'coordinates' キーが存在したら
+      //sender_coordinatesに、その値を入れる
+      dataToInsert['sender_coordinates'] = messageData['coordinates'];
+      }
 
     //  DBに保存する
     await db.insert(
@@ -235,6 +242,22 @@ class DatabaseHelper {
       print('❌ [DB 中継削除] ID $id の削除中にエラー: $e');
     }
   }
+  Future<List<Map<String, dynamic>>> getAllMessagesForDebug() async {
+    final db = await instance.database;
+
+    try {
+      final List<Map<String, dynamic>> maps = await db.query(
+        "messages", // messagesテーブルを指定
+        orderBy: 'id DESC', // 新しいものから順に表示
+      );
+      print('✅ [DB Debug] messages テーブルから ${maps.length} 件のデータを読み込みました。');
+      // 取得したデータをそのままコンソールにも出力 (必要に応じて)
+      // maps.forEach((msg) => print(msg)); 
+      
+      return maps;
+    } catch (e) {
+      print("❌ [DB ERROR] 'messages' テーブルの読み込みに失敗: $e");
+      return []; // エラーが起きても空のリストを返す
 
 
   //送信キューのメッセージを選択する関数
