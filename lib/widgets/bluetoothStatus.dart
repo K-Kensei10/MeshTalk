@@ -89,19 +89,12 @@ class _BluetoothStateBannerState extends State<BluetoothStateBanner> {
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.bluetooth_disabled, size: 64, color: Colors.blue),
-                    const SizedBox(height: 24),
+                  children: const [
+                    Icon(Icons.bluetooth_disabled, size: 64, color: Colors.blue),
+                    SizedBox(height: 24),
                     Text(
                       "Bluetoothをオンにしてください",
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red, // ★ 文字色を赤に
-                        decoration: TextDecoration.underline, // ★ 下線を表示
-                        decorationColor: Colors.black, // ★ 下線の色を黒に変更
-                        decorationThickness: 1.0, // ★ 下線を一本に調整
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                   ],
