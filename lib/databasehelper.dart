@@ -40,20 +40,21 @@ class DatabaseHelper {
       )
     '''); //UI表示用テーブル-自動採番ID-メッセージタイプ-メッセージ本文-送り主の電話番号-受信時間-送信時間-既読フラグ
 
-    await db.execute(
-      '''
+    await db.execute('''
       CREATE TABLE relay_messages (                             
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       relay_data TEXT NOT NULL,
       relay_received_at TEXT NOT NULL
       )
-    ''',
-    ); //中継機用テーブル-自動採番ID-中継用データ-中継機が「受信した時間」
+    '''); //中継機用テーブル-自動採番ID-中継用データ-中継機が「受信した時間」
   }
 
   Future<void> insertMessage(Map<String, dynamic> messageData) async {
     final db = await instance.database;
-    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
+    final String nowLocalString = DateTime.now()
+        .toIso8601String()
+        .substring(0, 19)
+        .replaceFirst('T', ' ');
 
     // DBに保存する Map を作成
     final Map<String, dynamic> dataToInsert = {
@@ -68,10 +69,11 @@ class DatabaseHelper {
     if (messageData.containsKey('transmission_time')) {
       dataToInsert['transmission_time'] = messageData['transmission_time'];
     }
-    if (messageData.containsKey('coordinates')) {// 'coordinates' キーが存在したら
+    if (messageData.containsKey('coordinates')) {
+      // 'coordinates' キーが存在したら
       //sender_coordinatesに、その値を入れる
       dataToInsert['sender_coordinates'] = messageData['coordinates'];
-      }
+    }
 
     //  DBに保存する
     await db.insert(
@@ -118,16 +120,19 @@ class DatabaseHelper {
 
   Future<void> insertRelayMessage(String relayString) async {
     final db = await instance.database;
-    final String nowLocalString = DateTime.now().toIso8601String().substring(0, 19).replaceFirst('T', ' ');
+    final String nowLocalString = DateTime.now()
+        .toIso8601String()
+        .substring(0, 19)
+        .replaceFirst('T', ' ');
     final Map<String, dynamic> dataToInsert = {
-    'relay_data': relayString,
-    'relay_received_at': nowLocalString, // ★ JST時刻を保存
+      'relay_data': relayString,
+      'relay_received_at': nowLocalString, // ★ JST時刻を保存
     };
 
     await db.insert(
-      "relay_messages", 
-      dataToInsert, 
-      conflictAlgorithm: ConflictAlgorithm.replace
+      "relay_messages",
+      dataToInsert,
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
@@ -187,8 +192,9 @@ class DatabaseHelper {
 
       const whereClause = 'message_type = ?'; // メッセージタイプでフィルタリング
 
-      final countResult = await db.rawQuery( // 現在の件数を取得
-        'SELECT COUNT(*) FROM messages WHERE $whereClause',  
+      final countResult = await db.rawQuery(
+        // 現在の件数を取得
+        'SELECT COUNT(*) FROM messages WHERE $whereClause',
         [types],
       );
 
@@ -222,14 +228,16 @@ class DatabaseHelper {
       print('[DB;安否確認or自治体連絡] エラー: $e');
     }
   }
-  Future<void> deleterelayMessage(int id) async { //中継メッセージ削除
+
+  Future<void> deleterelayMessage(int id) async {
+    //中継メッセージ削除
     try {
       final db = await instance.database;
 
-      final count = await db.delete( 
+      final count = await db.delete(
         'relay_messages',
-        where: 'id = ?',   // IDで指定
-        whereArgs: [id],  
+        where: 'id = ?', // IDで指定
+        whereArgs: [id],
       );
 
       if (count > 0) {
@@ -237,11 +245,11 @@ class DatabaseHelper {
       } else {
         print('⚠️ [DB 中継削除] ID $id が見つかりませんでした。削除なし。');
       }
-
     } catch (e) {
       print('❌ [DB 中継削除] ID $id の削除中にエラー: $e');
     }
   }
+
   Future<List<Map<String, dynamic>>> getAllMessagesForDebug() async {
     final db = await instance.database;
 
@@ -252,13 +260,14 @@ class DatabaseHelper {
       );
       print('✅ [DB Debug] messages テーブルから ${maps.length} 件のデータを読み込みました。');
       // 取得したデータをそのままコンソールにも出力 (必要に応じて)
-      // maps.forEach((msg) => print(msg)); 
-      
+      // maps.forEach((msg) => print(msg));
+
       return maps;
     } catch (e) {
       print("❌ [DB ERROR] 'messages' テーブルの読み込みに失敗: $e");
       return []; // エラーが起きても空のリストを返す
-
+    }
+  }
 
   //送信キューのメッセージを選択する関数
   Future<String?> getRelayMessage() async {
@@ -267,10 +276,10 @@ class DatabaseHelper {
     try {
       // IDが一番小さいデータを1件取得
       final List<Map<String, dynamic>> maps = await db.query(
-        "relay_messages", 
+        "relay_messages",
         columns: ['relay_data'], //relay_dataカラムを取得
-        orderBy: 'id ASC',       //IDの昇順
-        limit: 1,                //1件
+        orderBy: 'id ASC', //IDの昇順
+        limit: 1, //1件
       );
 
       if (maps.isNotEmpty) {
