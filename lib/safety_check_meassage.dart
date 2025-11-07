@@ -262,6 +262,18 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                   },
                   child: const Text("送信"),
                 ),
+                const SizedBox(height:20,),
+                ElevatedButton(
+                  onPressed: () async{
+                    await methodChannel
+            .invokeMethod<String>('routeMessageBridge', {
+              'message': "こちらエンジニアカフェです",
+              'myPhoneNumber': myPhoneNumber,
+              'messageType': 'SafetyCheck',
+              'toPhoneNumber': "01234567890",
+              "coordinates" : "33.593142|130.401892",
+            });
+            }, child: const Text("安否確認atエンジニアカフェ"))
               ],
             );
           },
