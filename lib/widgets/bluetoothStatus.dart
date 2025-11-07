@@ -113,3 +113,4 @@ class _BluetoothStateBannerState extends State<BluetoothStateBanner> {
     );
   }
 }
+
