@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 
 String? myPhoneNumber;
-bool _sendLocationInModal = true;
 
 class SafetyCheckPage extends StatefulWidget {
   const SafetyCheckPage({super.key});
@@ -98,18 +97,22 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     final toPhoneNumber = _recipientController.text;
     final message = _messageController.text;
 
-    if (toPhoneNumber.isNotEmpty &&
-        message.isNotEmpty) {
+    if (toPhoneNumber.isNotEmpty && message.isNotEmpty) {
       //message; to_phone_number; message_type; from_phone_number; TTL
       double? latToSend;
       double? lonToSend;
 
       //位置情報を取得
-      if(_sendLocationInModal) {
+      if (_sendLocationInModal) {
         final Position? pos = await getCurrentLocation(context);
         if (pos == null) {
           if (mounted) {
-            showSnackbar(context, "GPS取得に失敗したため、送信を中止しました。", 3, backgroundColor: Colors.red,);
+            showSnackbar(
+              context,
+              "GPS取得に失敗したため、送信を中止しました。",
+              3,
+              backgroundColor: Colors.red,
+            );
           }
           return; // 送信を中止
         }
@@ -135,7 +138,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
               'message': message,
               'messageType': 'SafetyCheck',
               'toPhoneNumber': toPhoneNumber,
-              'coordinates' : "$latToSend|$lonToSend"
+              'coordinates': "$latToSend|$lonToSend",
             });
         final messageDataMap = {
           'type': '2', // 安否確認 (Type 2)
@@ -207,15 +210,15 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _messageController,
-                    maxLength: _sendLocationInModal
-                      ? 40
-                      : 50, //字数の制限の変更
+                    maxLength: _sendLocationInModal ? 40 : 50, //字数の制限の変更
                     decoration: const InputDecoration(
                       hintText: "メッセージを入力してください (50文字以内)",
                     ),
                   ),
                   SwitchListTile(
-                    title: Text('位置情報を送信 (${_sendLocationInModal ? 40 : 50}文字)'),
+                    title: Text(
+                      '位置情報を送信 (${_sendLocationInModal ? 40 : 50}文字)',
+                    ),
                     value: _sendLocationInModal,
                     onChanged: (bool value) {
                       // 1. ダイアログのUIを更新
@@ -241,13 +244,18 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                     );
                     final message = _messageController.text;
                     final int currentMaxLength = _sendLocationInModal ? 40 : 50;
-                    if ((phoneNumber.length == 10 || phoneNumber.length == 11) &&
+                    if ((phoneNumber.length == 10 ||
+                            phoneNumber.length == 11) &&
                         message.isNotEmpty &&
                         message.length <= currentMaxLength) {
                       Navigator.of(context).pop();
                       _sendMessage();
                     } else if (message.length > currentMaxLength) {
-                      showSnackbar(context, "メッセージは$currentMaxLength文字以内で入力してください", 3);
+                      showSnackbar(
+                        context,
+                        "メッセージは$currentMaxLength文字以内で入力してください",
+                        3,
+                      );
                     } else {
                       showSnackbar(context, "有効な宛先とメッセージを入力してください", 3);
                     }
@@ -256,7 +264,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                 ),
               ],
             );
-          }
+          },
         );
       },
     );
@@ -296,14 +304,16 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                         itemBuilder: (context, index) {
                           final msg = messages[index];
                           final bool isSelf = msg['isSelf'] as bool? ?? false;
-                          final String? coords =  msg['coordinates'] as String?; // "緯度|経度" か null
+                          final String? coords =
+                              msg['coordinates'] as String?; // "緯度|経度" か null
 
                           final transmissionTimeStr =
                               msg['transmissionTime'] as String?;
 
                           String formattedSendTime = ""; // 最終的に表示する文字列
 
-                          if (transmissionTimeStr != null && transmissionTimeStr.isNotEmpty) {
+                          if (transmissionTimeStr != null &&
+                              transmissionTimeStr.isNotEmpty) {
                             try {
                               // 前後の空白を取り除く
                               final cleanTimeStr = transmissionTimeStr.trim();
@@ -311,7 +321,10 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                               //12文字以上あることを確認
                               if (cleanTimeStr.length >= 12) {
                                 //先頭12文字を切り取る
-                                final finalTimeStr = cleanTimeStr.substring(0,12);
+                                final finalTimeStr = cleanTimeStr.substring(
+                                  0,
+                                  12,
+                                );
 
                                 //正規表現で各パーツを抽出
                                 final regex = RegExp(
@@ -336,7 +349,8 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
                                     minute,
                                   );
 
-                                  formattedSendTime = "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(dt)}";
+                                  formattedSendTime =
+                                      "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(dt)}";
                                 } else {
                                   formattedSendTime = "送信日時不明 (形式エラー)";
                                 }

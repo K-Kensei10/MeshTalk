@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'databasehelper.dart';
 import 'dart:async';
 
+const methodChannel = MethodChannel('anslin.flutter.dev/contact');
+
 Future<void> autoScan() async {
-  const methodChannel = MethodChannel('anslin.flutter.dev/contact');
-  
+  await methodChannel.invokeMethod<String>('startCatchMessage');
 }
 
-Future<void> autoAdvertise() async {
-  const methodChannel = MethodChannel('anslin.flutter.dev/contact');
-  
-}
+// Future<void> autoAdvertise() async {
+
+//   if ()
+//   await methodChannel.invokeListMethod<String>("");
+// }

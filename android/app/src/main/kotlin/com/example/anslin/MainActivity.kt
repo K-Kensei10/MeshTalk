@@ -14,6 +14,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.*
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
@@ -28,12 +29,14 @@ import io.flutter.plugin.common.MethodChannel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
-import android.content.SharedPreferences
 
 val CONNECT_UUID = UUID.fromString("86411acb-96e9-45a1-90f2-e392533ef877")
 val READ_CHARACTERISTIC_UUID = UUID.fromString("a3f9c1d2-96e9-45a1-90f2-e392533ef877")
 val WRITE_CHARACTERISTIC_UUID = UUID.fromString("7e4b8a90-96e9-45a1-90f2-e392533ef877")
 val NOTIFY_CHARACTERISTIC_UUID = UUID.fromString("1d2e3f4a-96e9-45a1-90f2-e392533ef877")
+
+var ISSCANNING = false
+var ISADVERTISING = false
 
 // Flutter
 class MainActivity : FlutterActivity() {
@@ -49,27 +52,34 @@ class MainActivity : FlutterActivity() {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "startCatchMessage" -> {
-                    val bleController = BluetoothLeController(this)
-                    bleController.ScanAndConnect { resultMap ->
-                        when (resultMap["status"]) {
-                            "RECEIVE_MESSAGE_SUCCESSFUL" -> {
-                                val messageData = resultMap["data"]
-                                if (messageData != null) {
-                                    MessageBridge.onMessageReceived(messageData)
+                    if (!ISSCANNING) {
+                        ISSCANNING = true
+                        val bleController = BluetoothLeController(this)
+                        bleController.ScanAndConnect { resultMap ->
+                            when (resultMap["status"]) {
+                                "RECEIVE_MESSAGE_SUCCESSFUL" -> {
+                                    val messageData = resultMap["data"]
+                                    if (messageData != null) {
+                                        MessageBridge.onMessageReceived(messageData)
+                                    }
+                                    result.success("メッセージ受信＆処理完了")
                                 }
-                                result.success("メッセージ受信＆処理完了")
-                            }
-                            "device_not_found" -> {
-                                result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
-                            }
-                            else -> {
-                                result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
+                                "device_not_found" -> {
+                                    result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
+                                }
+                                else -> {
+                                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
+                                }
                             }
                         }
                     }
                 }
                 "startSendMessage" -> {
-                    prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                    prefs =
+                            context.getSharedPreferences(
+                                    "FlutterSharedPreferences",
+                                    Context.MODE_PRIVATE
+                            )
                     val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
                     val message = call.argument<String>("message") ?: ""
                     val phoneNum = myPhoneNumber ?: "00000000000"
@@ -78,18 +88,40 @@ class MainActivity : FlutterActivity() {
                     val coordinates = call.argument<String>("coordinates") ?: ""
                     val TTL = "150"
 
-                    val messageData = CreateMessageFormat(message, phoneNum, messageType, toPhoneNumber, TTL, coordinates)
+                    val messageData =
+                            CreateMessageFormat(
+                                    message,
+                                    phoneNum,
+                                    messageType,
+                                    toPhoneNumber,
+                                    TTL,
+                                    coordinates
+                            )
                     Log.d("Advertise", "$messageData")
-                    val bleController = BluetoothLeController(this)
-                    bleController.SendingMessage(messageData) { resultMap ->
-                        when (resultMap["status"]) {
-                            "SEND_MESSAGE_SUCCESSFUL" -> {
-                                result.success("メッセージが送信されました。")
+                    if (!ISADVERTISING) {
+                        ISADVERTISING = true
+                        val bleController = BluetoothLeController(this)
+                        bleController.SendingMessage(messageData) { resultMap ->
+                            when (resultMap["status"]) {
+                                "SEND_MESSAGE_SUCCESSFUL" -> {
+                                    result.success("メッセージを送信キューに追加しました。")
+                                }
+                                "ADVERTISE_FAILED" -> {
+                                    result.error("FAILED_ADVERTISING", "送信するデバイスが見つかりませんでした。", null)
+                                }
+                                else -> {
+                                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
+                                }
                             }
-                            "ADVERTISE_FAILED" -> {
-                                result.error("FAILED_ADVERTISING", "送信するデバイスが見つかりませんでした。", null)
-                            }
-                            else -> {
+                        }
+                    } else {
+                        runOnUiThread() {
+                            if (::channel.isInitialized) {
+                                // dart側の 'saveRelayMessage' メソッドを呼び出す
+                                channel.invokeMethod("saveRelayMessage", messageData)
+                                result.success("メッセージを送信キューに追加しました。")
+                            } else {
+                                println("MethodChannelが初期化されていません。")
                                 result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
                             }
                         }
@@ -128,8 +160,16 @@ class MainActivity : FlutterActivity() {
                 coordinatesToDart = null
                 println(" [受信] 位置情報なし ")
             }
-            val dataForFlutter = listOf(message, messageType, fromPhoneNumber, timestampString, coordinatesToDart)
-            val prefs =context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val dataForFlutter =
+                    listOf(
+                            message,
+                            messageType,
+                            fromPhoneNumber,
+                            timestampString,
+                            coordinatesToDart
+                    )
+            val prefs =
+                    context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val myPhoneNumber = prefs.getString("flutter.my_phone_number", null)
             var isMessenger: Boolean = false
 
@@ -153,10 +193,30 @@ class MainActivity : FlutterActivity() {
                     coordinatesToDart: String?
             ) {
                 val newTTL = (TTL - 1).toString()
-                val relayData = when(coordinatesToDart){
-                  null -> listOf(message, toPhoneNumber, messageType, fromPhoneNumber, newTTL, timestampString).joinToString(";")
-                  else -> listOf(message, toPhoneNumber, messageType, fromPhoneNumber, newTTL, timestampString, coordinatesToDart).joinToString(";")
-                }
+                val relayData =
+                        when (coordinatesToDart) {
+                            null ->
+                                    listOf(
+                                                    message,
+                                                    toPhoneNumber,
+                                                    messageType,
+                                                    fromPhoneNumber,
+                                                    newTTL,
+                                                    timestampString
+                                            )
+                                            .joinToString(";")
+                            else ->
+                                    listOf(
+                                                    message,
+                                                    toPhoneNumber,
+                                                    messageType,
+                                                    fromPhoneNumber,
+                                                    newTTL,
+                                                    timestampString,
+                                                    coordinatesToDart
+                                            )
+                                            .joinToString(";")
+                        }
                 runOnUiThread() {
                     if (::channel.isInitialized) {
                         // dart側の 'saveRelayMessage' メソッドを呼び出す
@@ -295,8 +355,8 @@ fun CreateMessageFormat(
     val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
     val TimeStamp = currentDateTime.format(formatter)
     if (coordinates == "") {
-      return listOf(message, toPhoneNumber, messageTypeCode, phoneNum, TTL, TimeStamp)
-            .joinToString(";")
+        return listOf(message, toPhoneNumber, messageTypeCode, phoneNum, TTL, TimeStamp)
+                .joinToString(";")
     }
     return listOf(message, toPhoneNumber, messageTypeCode, phoneNum, TTL, TimeStamp, coordinates)
             .joinToString(";")
@@ -307,7 +367,7 @@ class BluetoothLeController(public val activity: Activity) {
     private val bluetoothManager =
             activity.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val context: Context = activity
-    private var isScanning: Boolean = false
+    private var _isScanning: Boolean = false
     private var isAdvertising: Boolean = false
     private var scanFilter: ScanFilter? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -337,45 +397,41 @@ class BluetoothLeController(public val activity: Activity) {
 
     // ================= セントラル（メッセージ受信者） =================
     fun ScanAndConnect(onResult: (Map<String, String>) -> Unit) {
-        var scanCount = 0
         scanResultCallback = onResult
 
         // 権限チェック
         checkPermissions(context) { PermissionResult ->
             if (PermissionResult != null) {
                 Log.d("Scan", "通信に必要な権限がありません。設定から許可してください。")
+                ISSCANNING = false
                 return@checkPermissions
             }
             // BluetoothがOnになっているか
             if (adapter?.isEnabled != true) {
                 Log.d("Scan", "BluetoothがOFFになっています。設定からONにしてください。")
+                ISSCANNING = false
                 return@checkPermissions
             }
             // スキャン結果リセット
             scanResults.clear()
             // スキャン結果
-            if (!isScanning) {
+            if (!_isScanning) {
                 handler.postDelayed(
                         {
                             try {
                                 scanner?.stopScan(mScanCallback)
-                                isScanning = false
+                                _isScanning = false
                                 Log.d("Scan", "スキャンストップ")
                                 if (scanResults.isEmpty()) {
-                                    if (scanCount < 2) {
-                                        Log.d("scan", "$scanCount")
-                                        scanCount++
-                                        startBleScan()
-                                    } else {
-                                        scanResults.clear()
-                                        Log.d("Scan", "検出されたデバイスはありません")
-                                        onResult(
-                                                mapOf(
-                                                        "status" to "DEVICE_NOT_FOUND",
-                                                        "message" to "デバイスが付近に見つかりませんでした。"
-                                                )
-                                        )
-                                    }
+                                    scanResults.clear()
+                                    Log.d("Scan", "検出されたデバイスはありません")
+                                    ISSCANNING = false
+                                    onResult(
+                                            mapOf(
+                                                    "status" to "DEVICE_NOT_FOUND",
+                                                    "message" to "デバイスが付近に見つかりませんでした。"
+                                            )
+                                    )
                                 } else {
                                     for (result in scanResults) { // スキャンしたデバイスの数だけ表示する
                                         val name =
@@ -396,13 +452,15 @@ class BluetoothLeController(public val activity: Activity) {
                                             connect(address)
                                         } catch (e: Exception) {
                                             Log.d("Gatt", "通信を正しく開始することができませんでした: ${e.message}")
+                                            ISSCANNING = false
                                         }
                                     }
                                 }
                             } catch (e: Exception) {
                                 Log.e("Scan", "スキャン停止時に例外: ${e.message}")
                                 scanner?.stopScan(mScanCallback)
-                                isScanning = false
+                                _isScanning = false
+                                ISSCANNING = false
                             }
                         },
                         SCAN_PERIOD
@@ -410,6 +468,7 @@ class BluetoothLeController(public val activity: Activity) {
                 startBleScan()
             } else {
                 Log.d("Scan", "予期せぬエラーが発生しました")
+                ISSCANNING = false
             }
         }
     }
@@ -446,20 +505,23 @@ class BluetoothLeController(public val activity: Activity) {
                     override fun onScanFailed(errorCode: Int) {
                         super.onScanFailed(errorCode)
                         Log.d("Scan", "スキャンに失敗しました（コード: $errorCode）")
-                        isScanning = false
+                        _isScanning = false
+                        ISSCANNING = false
                         scanner?.stopScan(mScanCallback)
                     }
                 }
-        if (isScanning || scanner == null) {
+        if (_isScanning || scanner == null) {
             Log.d("Scan", "通信中に予期せぬエラーが発生しました。")
+            ISSCANNING = false
             return
         }
         try {
             scanner.stopScan(mScanCallback)
             scanner.startScan(scanFilterList, scanSettings, mScanCallback)
-            isScanning = true
+            _isScanning = true
         } catch (e: Exception) {
             Log.d("Scan", "スキャン開始時に予期せぬエラーが発生しました。${e.message}")
+            ISSCANNING = false
         }
     }
 
@@ -469,16 +531,19 @@ class BluetoothLeController(public val activity: Activity) {
         // 権限チェック
         if (advertiser == null) {
             Log.e("Advertise", "このデバイスはBLEアドバタイズに対応していません")
+            ISADVERTISING = false
             return
         }
         checkPermissions(context) { result ->
             if (result != null) {
                 Log.d("Advertise", "通信に必要な権限がありません。設定から許可してください。")
+                ISADVERTISING = false
                 return@checkPermissions
             }
             // BluetoothがOnになっているか
             if (adapter?.isEnabled != true) {
                 Log.d("Advertise", "BluetoothがOFFになっています。設定からONにしてください。")
+                ISADVERTISING = false
                 return@checkPermissions
             }
             Log.d("Advertise", "$messageData")
@@ -492,6 +557,7 @@ class BluetoothLeController(public val activity: Activity) {
                         ) {
                             if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                                 Log.d("GATT", "セントラルが切断しました")
+                                ISADVERTISING = false
                                 // 変数初期化
                                 readCharacteristic = null
                                 writeCharacteristic = null
@@ -578,6 +644,7 @@ class BluetoothLeController(public val activity: Activity) {
                         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
                             handler.postDelayed(
                                     {
+                                        ISADVERTISING = false
                                         advertiser.stopAdvertising(mAdvertiseCallback)
                                         Log.e("Advertise", "アドバタイズの停止")
                                         if (!isConnected) {
@@ -633,11 +700,13 @@ class BluetoothLeController(public val activity: Activity) {
                 return true
             } catch (exception: IllegalArgumentException) {
                 Log.d("GATT", "デバイスが見つかりませんでした。")
+                ISSCANNING = false
                 return false
             }
         }
                 ?: run {
                     Log.d("GATT", "Bluetoothが使用できません。")
+                    ISSCANNING = false
                     return false
                 }
     }
@@ -678,6 +747,7 @@ class BluetoothLeController(public val activity: Activity) {
                     val service: BluetoothGattService? = gatt.getService(CONNECT_UUID)
                     if (service == null) {
                         Log.e("GATT", "指定されたサービスが見つかりません: $CONNECT_UUID")
+                        ISSCANNING = false
                         return
                     }
                     readCharacteristic = service.getCharacteristic(READ_CHARACTERISTIC_UUID)
@@ -713,6 +783,7 @@ class BluetoothLeController(public val activity: Activity) {
                         bluetoothGatt = null
                     } else {
                         Log.e("BLE_READ", "読み取り失敗 status: $status")
+                        ISSCANNING = false
                         bluetoothGatt?.disconnect()
                         bluetoothGatt?.close()
                     }

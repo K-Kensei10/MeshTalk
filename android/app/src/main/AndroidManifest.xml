@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Android9(APIレベル28)以下 -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Android13(APIレベル33)以上 -->
+    <android:allowedServiceUuid value="86411acb-96e9-45a1-90f2-e392533ef877" />
 
     <application
         android:label="ANSLIN"
