@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class BluetoothStateBanner extends StatefulWidget {
   final Widget child;
@@ -55,14 +54,6 @@ class _BluetoothStateBannerState extends State<BluetoothStateBanner> {
     super.dispose();
   }
 
-  // ★ 設定アプリを開く関数（Android/iOS両対応）
-  Future<void> _openAppSettings() async {
-    const url = 'app-settings:'; // iOS/Android共通で設定アプリを開く
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -101,25 +92,16 @@ class _BluetoothStateBannerState extends State<BluetoothStateBanner> {
                   children: [
                     const Icon(Icons.bluetooth_disabled, size: 64, color: Colors.blue),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       "Bluetoothをオンにしてください",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ★ 設定を開くボタン
-                    ElevatedButton(
-                      onPressed: _openAppSettings,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red, // ★ 文字色を赤に
+                        decoration: TextDecoration.underline, // ★ 下線を表示
+                        decorationColor: Colors.black, // ★ 下線の色を黒に変更
                       ),
-                      child: const Text("設定を開く"),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
