@@ -35,18 +35,15 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
     super.initState();
   }
 
-  //メッセージを受信する関数
-  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _receivingSnackBar;
-
   Future<void> _startCatchMessage({required bool isManual}) async {
     try {
       if (isManual) {
         if (!mounted) return;
         // 「受信中」スナックバーを表示
-        _receivingSnackBar = showSnackbar(
+        showSnackbar(
           context,
           'メッセージを受信中…',
-          120,
+          30,
           leading: const SizedBox(
             width: 20,
             height: 20,
@@ -59,9 +56,9 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
       );
       if (!mounted) return;
       if (isManual) {
-        if (result != null && result.isNotEmpty) {
+        if (result == "RECEIVE_MESSAGE_SUCCESSFUL") {
           // 「受信中」スナックバーを閉じる
-          _receivingSnackBar?.close();
+          ScaffoldMessenger.of(context).clearSnackBars();
           showSnackbar(
             context,
             "メッセージを受信しました。",
@@ -69,7 +66,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
             backgroundColor: Colors.green,
           );
         } else {
-          _receivingSnackBar?.close();
+          ScaffoldMessenger.of(context).clearSnackBars();
           showSnackbar(
             context,
             "メッセージを受信できませんでした。",
@@ -80,7 +77,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
       }
     } on PlatformException catch (e) {
       if (!mounted) return;
-      _receivingSnackBar?.close(); // エラー時も閉じる
+      ScaffoldMessenger.of(context).clearSnackBars();
       if (isManual) {
         showSnackbar(
           context,
@@ -122,7 +119,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
       try {
         // 通信中SnackBar（グルグル付き
         if (mounted) {
-          _receivingSnackBar = showSnackbar(
+          showSnackbar(
             context,
             'メッセージを送信中…',
             120,
@@ -146,8 +143,8 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           'from': 'SELF_SENT_SAFETY_CHECK', // (自分だとわかる特殊な文字列)
         };
         if (!mounted) return;
-        if (result != null && result.isNotEmpty) {
-          _receivingSnackBar?.close();
+        if (result == "SEND_MESSAGE_SUCCESSFUL") {
+          ScaffoldMessenger.of(context).clearSnackBars();
           showSnackbar(
             context,
             "メッセージを送信しました。",
@@ -161,7 +158,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
           _recipientController.clear();
           _messageController.clear();
         } else {
-          _receivingSnackBar?.close();
+          ScaffoldMessenger.of(context).clearSnackBars();
           showSnackbar(
             context,
             "メッセージを送信できませんでした。",
@@ -171,7 +168,7 @@ class _SafetyCheckPageState extends State<SafetyCheckPage> {
         }
       } on PlatformException catch (e) {
         if (!mounted) return;
-        _receivingSnackBar?.close();
+        ScaffoldMessenger.of(context).clearSnackBars();
         showSnackbar(
           context,
           "エラー: ${e.message}",
