@@ -1,5 +1,3 @@
-// lib/database_helper.dart
-
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'dart:async';
@@ -69,6 +67,8 @@ class DatabaseHelper {
     if (messageData.containsKey('transmission_time')) {
       dataToInsert['transmission_time'] = messageData['transmission_time'];
     }
+
+    //「位置情報」キーが存在したら、それも Map に追加
     if (messageData.containsKey('coordinates')) {
       // 'coordinates' キーが存在したら
       //sender_coordinatesに、その値を入れる
@@ -290,5 +290,17 @@ class DatabaseHelper {
     } catch (e) {
       print('メッセージの削除に失敗しました: $e');
     }
+  }
+
+  //重複している場合真を返す関数
+  Future<bool> checkDuplicates(String message, String messageType, String fromPhoneNumber, String timestampString) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'messages',
+      where: 'message_type = ? AND content = ? AND sender_phone_number = ? AND transmission_time = ?',
+      whereArgs: [messageType, message, fromPhoneNumber, timestampString],
+      limit: 1
+    );
+    return result.isNotEmpty;
   }
 }
