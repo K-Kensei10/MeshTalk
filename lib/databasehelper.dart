@@ -136,22 +136,6 @@ class DatabaseHelper {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getRelayMessagesForDebug() async {
-    final db = await instance.database;
-
-    try {
-      final List<Map<String, dynamic>> maps = await db.query(
-        "relay_messages",
-        orderBy: 'id DESC',
-      );
-      return maps;
-    } catch (e) {
-      print("❌ [DB ERROR] 'relay_messages' テーブルの読み込みに失敗: $e");
-      print("   もしかして: 'relay_messages' テーブルが存在しない？");
-      return []; // エラーが起きても空のリストを返す
-    }
-  }
-
   Future<void> DatabaseCleanup() async {
     print('▶ [DB掃除] 定期クリーンアップを開始...');
 
@@ -247,25 +231,6 @@ class DatabaseHelper {
       }
     } catch (e) {
       print('❌ [DB 中継削除] ID $id の削除中にエラー: $e');
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> getAllMessagesForDebug() async {
-    final db = await instance.database;
-
-    try {
-      final List<Map<String, dynamic>> maps = await db.query(
-        "messages", // messagesテーブルを指定
-        orderBy: 'id DESC', // 新しいものから順に表示
-      );
-      print('✅ [DB Debug] messages テーブルから ${maps.length} 件のデータを読み込みました。');
-      // 取得したデータをそのままコンソールにも出力 (必要に応じて)
-      // maps.forEach((msg) => print(msg));
-
-      return maps;
-    } catch (e) {
-      print("❌ [DB ERROR] 'messages' テーブルの読み込みに失敗: $e");
-      return []; // エラーが起きても空のリストを返す
     }
   }
 
