@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:badges/badges.dart' as badges;
 import 'databasehelper.dart';
+import 'auto_connection.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 
@@ -14,12 +15,15 @@ import 'package:anslin/goverment_message.dart';
 import 'package:anslin/host_auth.dart';
 import 'package:anslin/goverment_mode.dart';
 
+int globalTimerDuration = 10;
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();// Flutterの初期化を待つ
+  WidgetsFlutterBinding.ensureInitialized(); // Flutterの初期化を待つ
   final prefs = await SharedPreferences.getInstance();
-  final String? myPhoneNumber = prefs.getString('my_phone_number');// 保存された電話番号を取得
-  await AppData.loadInitialData();//保存データを読み込む
+  final String? myPhoneNumber = prefs.getString(
+    'my_phone_number',
+  ); // 保存された電話番号を取得
+  await AppData.loadInitialData(); //保存データを読み込む
   runApp(MyApp(myPhoneNumber: myPhoneNumber));
 }
 
@@ -65,9 +69,21 @@ class AppData {
     final type = data[1].toString();
     final phone = data[2] ?? "不明";
     final transmissionTimeStr = data.length > 3 ? data[3] as String? ?? "" : "";
+    final coordinates = data.length > 4 ? data[4] as String? : null;
+    final isDuplicate = await DatabaseHelper.instance.checkDuplicates(text, type, phone, transmissionTimeStr);
+
+    if (isDuplicate) {
+      print('重複メッセージのため保存をスキップ: $text');
+      return;
+    }
 
     //ListをMapに変換
-    final messageDataMap = {'type': type, 'content': text, 'from': phone};
+    final messageDataMap = {
+      'type': type,
+      'content': text,
+      'from': phone,
+      'coordinates': coordinates,
+    };
     // 送信時間を取得してフォーマット
     if (transmissionTimeStr.isNotEmpty) {
       messageDataMap['transmission_time'] = transmissionTimeStr;
@@ -77,7 +93,9 @@ class AppData {
     await DatabaseHelper.instance.insertMessage(messageDataMap);
 
     if (type == '1' && currentTabIndex != 0) {
-      unreadSnsCount.value = await DatabaseHelper.instance.getUnreadCountByType('1');
+      unreadSnsCount.value = await DatabaseHelper.instance.getUnreadCountByType(
+        '1',
+      );
     } else if (type == '2' && currentTabIndex != 1) {
       unreadSafetyCheckCount.value = await DatabaseHelper.instance
           .getUnreadCountByType('2');
@@ -122,14 +140,14 @@ class AppData {
   static Future<void> loadSnsPosts() async {
     final snsData = await DatabaseHelper.instance.getMessagesByType('1');
 
-    const String selfSentFlag = 'SELF_SENT_SNS'; 
+    const String selfSentFlag = 'SELF_SENT_SNS';
 
     AppData.snsPosts.value = snsData.map((dbRow) {
       final timestamp = DateTime.parse(dbRow['received_at'] as String);
       final sender = dbRow['sender_phone_number'] as String;
       final content = dbRow['content'] as String;
 
-      // フラグを見て、自分が投稿したかどうかの Boolean 
+      // フラグを見て、自分が投稿したかどうかの Boolean
       return {
         'text': content,
         'timestamp': timestamp,
@@ -146,18 +164,20 @@ class AppData {
     const String selfSentFlag = 'SELF_SENT_SAFETY_CHECK';
 
     AppData.receivedMessages.value = safetyData.map((dbRow) {
+      final time = DateTime.parse(dbRow['received_at'] as String); // 受信時間
 
-      final time = DateTime.parse(dbRow['received_at'] as String);// 受信時間
-
-      final transmissionTimeStr = dbRow['transmission_time'] as String?;// 送信時間 (他人から受信した場合にのみ存在)
-
+      final transmissionTimeStr =
+          dbRow['transmission_time'] as String?; // 送信時間 (他人から受信した場合にのみ存在)
 
       final sender = dbRow['sender_phone_number'] as String;
       final content = dbRow['content'] as String;
 
-      if (sender == selfSentFlag) {
+      final String? coordinates =
+          dbRow['sender_coordinates'] as String?; // 送信者の座標情報 (null か "緯度|経度")
 
-        final timeStr = "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(time)}"; //自分が送ったメッセージの送信日時
+      if (sender == selfSentFlag) {
+        final timeStr =
+            "送信日時: ${DateFormat("yyyy/M/d HH:mm").format(time)}"; //自分が送ったメッセージの送信日時
 
         // 自分が送信したメッセージ
         return {
@@ -166,18 +186,21 @@ class AppData {
           'time': timeStr,
           'isSelf': true,
           'transmissionTime': null,
+          'coordinates': coordinates,
         };
       } else {
         // 他人から受信したメッセージ
 
-        final timeStr = "受信日時: ${DateFormat("yyyy/M/d HH:mm").format(time)}"; //受信日時
-        
+        final timeStr =
+            "受信日時: ${DateFormat("yyyy/M/d HH:mm").format(time)}"; //受信日時
+
         return {
           'subject': '安否確認 (受信)',
           'detail': '電話番号 $sender さんから「$content」が届きました',
           'time': timeStr,
           'isSelf': false,
           'transmissionTime': transmissionTimeStr,
+          'coordinates': coordinates,
         };
       }
     }).toList();
@@ -185,7 +208,6 @@ class AppData {
 
   // 自治体連絡メッセージを読み込む関数
   static Future<void> loadOfficialMessages() async {
-    
     // 1. Type 3 (自分が送信) をDBから取得
     final type3Data = await DatabaseHelper.instance.getMessagesByType('3');
     // 2. Type 4 (自治体から受信) をDBから取得
@@ -201,7 +223,7 @@ class AppData {
         'text': dbRow['content'] as String,
         'time': timeStr,
         'isSelf': true, // ★ Type 3 は「自分」
-        'received_at_raw': time, 
+        'received_at_raw': time,
       });
     }
 
@@ -212,8 +234,8 @@ class AppData {
       allMessages.add({
         'text': dbRow['content'] as String,
         'time': timeStr,
-        'isSelf': false, 
-        'received_at_raw': time, 
+        'isSelf': false,
+        'received_at_raw': time,
       });
     }
 
@@ -264,13 +286,12 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   Timer? _timer;
 
-
   final List<Widget> _pages = [
     const ShelterSNSPage(),
     const SafetyCheckPage(),
     const LocalGovernmentPage(),
     const HostAuthPage(),
-    const GovernmentHostPage()
+    const GovernmentHostPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -317,9 +338,14 @@ class _MainPageState extends State<MainPage> {
   }
 
   //定期実行する関数
-    void _startGlobalTimer() {
-    _timer = Timer.periodic(Duration(seconds: 30), (Timer t) {
+  void _startGlobalTimer() {
+    _timer = Timer.periodic(Duration(seconds: globalTimerDuration), (Timer t) {
       print('定期実行');
+      DatabaseHelper.instance.DatabaseCleanup();
+      if (connectedDeviceCount() <= 3) {
+        autoScan();
+        autoAdvertise();
+      }
     });
   }
 
@@ -338,16 +364,14 @@ class _MainPageState extends State<MainPage> {
         await AppData.addReceivedData(data, _selectedIndex);
 
         final type = data[1].toString();
-        
+
         if (type == '1' && _selectedIndex == 0) {
           await AppData.loadSnsPosts();
-          await AppData.resetUnreadCount(0); 
-          
+          await AppData.resetUnreadCount(0);
         } else if (type == '2' && _selectedIndex == 1) {
           await AppData.loadSafetyCheckMessages();
           await AppData.resetUnreadCount(1);
-          
-        } else if (type == '4' && _selectedIndex == 2) { 
+        } else if (type == '4' && _selectedIndex == 2) {
           await AppData.loadOfficialMessages();
           await AppData.resetUnreadCount(2);
         }
@@ -355,11 +379,11 @@ class _MainPageState extends State<MainPage> {
       if (call.method == "saveRelayMessage") {
         try {
           //Kotlinから渡された引数をMapに変換
-          final Map<String, dynamic> relayData = Map<String, dynamic>.from(call.arguments);
-          
+          final String relayString = call.arguments as String;
+
           //DBに中継メッセージを保存
-          await DatabaseHelper.instance.insertRelayMessage(relayData);
-          print(" [Dart] 中継メッセージをDBに保存しました: $relayData");
+          await DatabaseHelper.instance.insertRelayMessage(relayString);
+          print(" [Dart] 中継メッセージをDBに保存しました: $relayString");
         } catch (e) {
           print("[Dart] 中継メッセージのDB保存に失敗: $e");
         }
@@ -393,10 +417,7 @@ class _MainPageState extends State<MainPage> {
         //各アイコンにバッジを追加
         items: [
           BottomNavigationBarItem(
-            icon: _buildIconWithBadge(
-              Icons.home,
-              AppData.unreadSnsCount,
-            ),
+            icon: _buildIconWithBadge(Icons.home, AppData.unreadSnsCount),
             label: "避難所SNS",
           ),
           BottomNavigationBarItem(
@@ -440,4 +461,8 @@ void _checkAndRequestPermissions() async {
       await permission.request();
     }
   }
+}
+
+int connectedDeviceCount() {
+  return 3;
 }
