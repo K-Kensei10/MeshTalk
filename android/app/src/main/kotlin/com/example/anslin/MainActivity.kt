@@ -23,6 +23,10 @@ import android.util.Log
 import androidx.annotation.NonNull
 import androidx.core.content.ContextCompat
 import androidx.core.os.postDelayed
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import io.flutter.plugin.common.EventChannel
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -45,6 +49,8 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "anslin.flutter.dev/contact"
     private lateinit var channel: MethodChannel
     private lateinit var prefs: SharedPreferences
+    private val BLUETOOTH_STATE_CHANNEL = "bluetoothStatus"
+    private var bluetoothStateReceiver: BroadcastReceiver? = null
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -152,8 +158,52 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, BLUETOOTH_STATE_CHANNEL).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+                    println("[EventChannel] Bluetooth状態の監視を開始します。")
+
+                    bluetoothStateReceiver = createBluetoothStateReceiver(events) //OSからの通知を受け取る
+                    
+                    val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)// OSからbluetoothの状態変化を受け取る
+                    registerReceiver(bluetoothStateReceiver, filter)
+                    
+                    val adapter = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter//アプリ起動時の状態
+                    events.success(adapter?.isEnabled ?: false)
+                }
+                override fun onCancel(arguments: Any?) {
+                    println("[EventChannel] Bluetooth状態の監視を停止します。")
+                    if (bluetoothStateReceiver != null) {
+                        unregisterReceiver(bluetoothStateReceiver) // OSへの登録を解除
+                        bluetoothStateReceiver = null
+                    }
+                }
+            }
+        )
         MessageBridge.registerActivityHandler { receivedData ->
             runOnUiThread() { messageSeparate(receivedData) }
+        }
+    }
+
+    
+    private fun createBluetoothStateReceiver(events: EventChannel.EventSink): BroadcastReceiver {
+        return object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    
+                    when (state) {
+                        BluetoothAdapter.STATE_OFF -> {
+                            println("bluetoothがOFFになりました。")
+                            events.success(false) //
+                        }
+                        BluetoothAdapter.STATE_ON -> {
+                            println("bluetoothがONになりました。")
+                            events.success(true) // Flutterに true を送信
+                        }
+                    }
+                }
+            }
         }
     }
 
