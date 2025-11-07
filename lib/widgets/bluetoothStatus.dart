@@ -61,37 +61,48 @@ class _BluetoothStateBannerState extends State<BluetoothStateBanner> {
         // ★ メイン画面（childを表示）
         Positioned.fill(child: widget.child),
 
-        // ★ BluetoothがOFFのときだけ中央ポップアップを表示
-        if (!_isBluetoothOn)
+        // ★ BluetoothがOFFのときだけ中央ポップアップ＋暗背景を表示
+        if (!_isBluetoothOn) ...[
+          // ★ 背景を暗くして操作不可にする
+          const ModalBarrier(
+            dismissible: false,
+            color: Colors.black54,
+          ),
+
+          // ★ 中央ポップアップ
           Center(
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              margin: const EdgeInsets.symmetric(horizontal: 32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.bluetooth_disabled, size: 48, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text(
-                    "Bluetoothをオンにしてください",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.8,
+              height: 300, // ★ 少し縦長に
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50, // ★ 青系の背景色
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.bluetooth_disabled, size: 64, color: Colors.blue),
+                    SizedBox(height: 24),
+                    Text(
+                      "Bluetoothをオンにしてください",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+        ],
       ],
     );
   }
