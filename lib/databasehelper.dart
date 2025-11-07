@@ -258,6 +258,63 @@ class DatabaseHelper {
     } catch (e) {
       print("❌ [DB ERROR] 'messages' テーブルの読み込みに失敗: $e");
       return []; // エラーが起きても空のリストを返す
+
+
+  //送信キューのメッセージを選択する関数
+  Future<String?> getRelayMessage() async {
+    final db = await instance.database;
+
+    try {
+      // IDが一番小さいデータを1件取得
+      final List<Map<String, dynamic>> maps = await db.query(
+        "relay_messages", 
+        columns: ['relay_data'], //relay_dataカラムを取得
+        orderBy: 'id ASC',       //IDの昇順
+        limit: 1,                //1件
+      );
+
+      if (maps.isNotEmpty) {
+        final String messageData = maps.first['relay_data'] as String;
+        print("中継DBのdataを取得しました。$messageData");
+        return messageData;
+      } else {
+        print("中継DBは空です。");
+        return null;
+      }
+    } catch (e) {
+      print("中継メッセージの取得中にエラー: $e");
+      return null;
+    }
+  }
+
+  //送信キューのメッセージを削除する関数
+  Future<void> deleteOldestRelayMessage() async {
+    final db = await instance.database;
+    try {
+      // 一番古い（IDが最小）のデータを取得
+      final List<Map<String, dynamic>> result = await db.query(
+        'relay_messages',
+        columns: ['id'],
+        orderBy: 'id ASC',
+        limit: 1,
+      );
+
+      if (result.isNotEmpty) {
+        final int oldestId = result.first['id'] as int;
+
+        // 取得したIDのデータを削除
+        await db.delete(
+          'relay_messages',
+          where: 'id = ?',
+          whereArgs: [oldestId],
+        );
+
+        print('ID $oldestId のメッセージを削除しました');
+      } else {
+        print('削除対象のメッセージが存在しません');
+      }
+    } catch (e) {
+      print('メッセージの削除に失敗しました: $e');
     }
   }
 }

@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:badges/badges.dart' as badges;
 import 'databasehelper.dart';
+import 'auto_connection.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 
@@ -325,6 +326,11 @@ class _MainPageState extends State<MainPage> {
     void _startGlobalTimer() {
     _timer = Timer.periodic(Duration(seconds: 30), (Timer t) {
       print('定期実行');
+      DatabaseHelper.instance.DatabaseCleanup();
+      if (connectedDeviceCount() <= 3) {
+        autoScan();
+        autoAdvertise();
+      }
     });
   }
 
@@ -445,4 +451,8 @@ void _checkAndRequestPermissions() async {
       await permission.request();
     }
   }
+}
+
+int connectedDeviceCount() {
+  return 3;
 }
