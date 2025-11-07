@@ -52,25 +52,25 @@ class MainActivity : FlutterActivity() {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "startCatchMessage" -> {
-                        ISSCANNING = true
-                        val bleController = BluetoothLeController(this)
-                        bleController.ScanAndConnect { resultMap ->
-                            when (resultMap["status"]) {
-                                "RECEIVE_MESSAGE_SUCCESSFUL" -> {
-                                    val messageData = resultMap["data"]
-                                    if (messageData != null) {
-                                        MessageBridge.onMessageReceived(messageData)
-                                    }
-                                    result.success("メッセージ受信＆処理完了")
+                    ISSCANNING = true
+                    val bleController = BluetoothLeController(this)
+                    bleController.ScanAndConnect { resultMap ->
+                        when (resultMap["status"]) {
+                            "RECEIVE_MESSAGE_SUCCESSFUL" -> {
+                                val messageData = resultMap["data"]
+                                if (messageData != null) {
+                                    MessageBridge.onMessageReceived(messageData)
                                 }
-                                "device_not_found" -> {
-                                    result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
-                                }
-                                else -> {
-                                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
-                                }
+                                result.success("メッセージ受信＆処理完了")
+                            }
+                            "device_not_found" -> {
+                                result.error("DEVICE_NOT_FOUND", resultMap["message"], null)
+                            }
+                            else -> {
+                                result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました。", null)
                             }
                         }
+                    }
                 }
                 "startSendMessage" -> {
                     prefs =
@@ -121,6 +121,26 @@ class MainActivity : FlutterActivity() {
                             } else {
                                 println("MethodChannelが初期化されていません。")
                                 result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
+                            }
+                        }
+                    }
+                }
+                "autoAdvertise" -> {
+                    val messageData: String = call.argument<String>("message") ?: ""
+                    if (!ISADVERTISING) {
+                        ISADVERTISING = true
+                        val bleController = BluetoothLeController(this)
+                        bleController.SendingMessage(messageData) { resultMap ->
+                            when (resultMap["status"]) {
+                                "SEND_MESSAGE_SUCCESSFUL" -> {
+                                    result.success("メッセージを送信キューに追加しました。")
+                                }
+                                "ADVERTISE_FAILED" -> {
+                                    result.error("FAILED_ADVERTISING", "送信するデバイスが見つかりませんでした。", null)
+                                }
+                                else -> {
+                                    result.error("UNKNOWN_STATUS", "予期せぬエラーが発生しました", null)
+                                }
                             }
                         }
                     }

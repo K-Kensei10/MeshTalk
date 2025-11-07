@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'databasehelper.dart';
 import 'dart:async';
@@ -9,8 +8,16 @@ Future<void> autoScan() async {
   await methodChannel.invokeMethod<String>('startCatchMessage');
 }
 
-// Future<void> autoAdvertise() async {
-
-//   if ()
-//   await methodChannel.invokeListMethod<String>("");
-// }
+Future<void> autoAdvertise() async {
+  String? relayMessage = await DatabaseHelper.instance.getRelayMessage();
+  if (relayMessage == null) {
+    return;
+  }
+  final String? result = await methodChannel.invokeMethod<String>(
+    "autoAdvertise",
+    {"message": relayMessage},
+  );
+  if (result != null && result.isNotEmpty) {
+    DatabaseHelper.instance.deleteOldestRelayMessage();
+  }
+}
