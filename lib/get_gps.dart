@@ -79,17 +79,25 @@ String formatDistance(double distanceInMeters) {
 // 角度を 8方位の文字列に変換する
 String getDirection(double bearing) {
   // 角度を8方位に変換
-  final int index = (((bearing + 22.5) % 360) / 45)
+  final int index = (((bearing + 11.25) % 360) / 22.5)
       .floor(); // 角度を45度ごとに区切り、インデックスを計算
   const List<String> directions = [
     '北',
+    '北北東',
     '北東',
+    '東北東',
     '東',
+    '東南東',
     '南東',
+    '南南東',
     '南',
+    '南南西',
     '南西',
+    '西南西',
     '西',
+    '西北西',
     '北西',
+    '北北西',
   ];
   return directions[index];
 }
@@ -108,7 +116,7 @@ Widget buildDistanceInfo(String coordinates) {
 
     if (theirLat == null || theirLon == null) {
       return const Text(
-        "座標データのパースに失敗",
+        "位置情報が付属していません",
         style: TextStyle(color: Colors.red),
       ); // パースに失敗した場合のエラーメッセージ
     }

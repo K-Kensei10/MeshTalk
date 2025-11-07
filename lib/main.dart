@@ -324,12 +324,11 @@ class _MainPageState extends State<MainPage> {
 
   //定期実行する関数
     void _startGlobalTimer() {
-    _timer = Timer.periodic(Duration(seconds: 30), (Timer t) {
+    _timer = Timer.periodic(Duration(seconds: 10), (Timer t) {
       print('定期実行');
       DatabaseHelper.instance.DatabaseCleanup();
       if (connectedDeviceCount() <= 3) {
         autoScan();
-        autoAdvertise();
       }
     });
   }

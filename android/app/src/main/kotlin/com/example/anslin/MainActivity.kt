@@ -52,7 +52,6 @@ class MainActivity : FlutterActivity() {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "startCatchMessage" -> {
-                    if (!ISSCANNING) {
                         ISSCANNING = true
                         val bleController = BluetoothLeController(this)
                         bleController.ScanAndConnect { resultMap ->
@@ -72,7 +71,6 @@ class MainActivity : FlutterActivity() {
                                 }
                             }
                         }
-                    }
                 }
                 "startSendMessage" -> {
                     prefs =
