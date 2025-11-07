@@ -179,8 +179,7 @@ Widget buildDistanceInfo(String coordinates) {
         try {
           final Position myPos = snapshot.data!; // 取得した自分の位置情報
           final LatLng myLatLng = LatLng(
-            myPos.latitude,
-            myPos.longitude,
+            33.588263, 130.39924
           ); // 自分の座標オブジェクト
           print("自分のLatLng: ${myLatLng.latitude}, ${myLatLng.longitude}");
           // 距離と方角を計算
